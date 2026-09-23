@@ -32,3 +32,10 @@ export interface AgencySettings {
   city: string;
   email?: string;
 }
+
+export interface UserSession {
+  role: 'customer' | 'admin';
+  name: string;
+  phone: string;
+  logged_in_at: string;
+}

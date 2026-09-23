@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   MapPin, 
   Calendar, 
@@ -13,7 +13,8 @@ import {
   Car,
   X,
   AlertCircle,
-  ShieldCheck
+  ShieldCheck,
+  User
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Vehicle, Booking } from '../../types';
@@ -31,7 +32,9 @@ export const CustomerView: React.FC = () => {
     bookingModalVehicle, 
     openBookingModal, 
     closeBookingModal,
-    createBooking 
+    createBooking,
+    currentUser,
+    loginCustomer
   } = useApp();
 
   const [bookingName, setBookingName] = useState('');
@@ -41,6 +44,24 @@ export const CustomerView: React.FC = () => {
   const [formError, setFormError] = useState('');
 
   const quickCities = ["Puri", "Konark", "Chilika", "Daringbadi", "Gopalpur", "Kolkata"];
+
+  // Pre-fill user data whenever user logs in or modal opens
+  useEffect(() => {
+    if (currentUser?.role === 'customer') {
+      setBookingName(currentUser.name);
+      setBookingPhone(currentUser.phone);
+    }
+  }, [currentUser, bookingModalVehicle]);
+
+  const handleOpenBooking = (vehicle: Vehicle) => {
+    setConfirmedBooking(null);
+    setFormError('');
+    if (currentUser?.role === 'customer') {
+      setBookingName(currentUser.name);
+      setBookingPhone(currentUser.phone);
+    }
+    openBookingModal(vehicle);
+  };
 
   const handleBookSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,6 +78,7 @@ export const CustomerView: React.FC = () => {
 
     if (!bookingModalVehicle) return;
 
+    // Create Booking
     const newBooking = createBooking({
       customer_name: bookingName.trim(),
       customer_phone: bookingPhone.trim(),
@@ -68,6 +90,9 @@ export const CustomerView: React.FC = () => {
       vehicle_name: bookingModalVehicle.name,
       special_notes: bookingNotes.trim() || undefined
     });
+
+    // Automatically update or create customer session so this registered number is saved
+    loginCustomer(bookingName.trim(), bookingPhone.trim());
 
     setConfirmedBooking(newBooking);
   };
@@ -251,12 +276,8 @@ export const CustomerView: React.FC = () => {
               <div className="p-5 pt-0 space-y-2 border-t border-slate-100 mt-2">
                 {vehicle.is_available ? (
                   <button
-                    onClick={() => {
-                      setConfirmedBooking(null);
-                      setFormError('');
-                      openBookingModal(vehicle);
-                    }}
-                    className="w-full btn-primary py-2.5 text-xs font-bold cursor-pointer"
+                    onClick={() => handleOpenBooking(vehicle)}
+                    className="w-full btn-primary py-2.5 text-xs font-bold cursor-pointer flex items-center justify-center gap-1.5"
                   >
                     <span>Book This Car</span>
                     <ArrowRight className="w-4 h-4" />
@@ -322,7 +343,7 @@ export const CustomerView: React.FC = () => {
 
               <button
                 onClick={closeBookingModal}
-                className="p-1.5 text-slate-400 hover:text-white rounded-lg bg-slate-800"
+                className="p-1.5 text-slate-400 hover:text-white rounded-lg bg-slate-800 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -344,7 +365,7 @@ export const CustomerView: React.FC = () => {
                       Booking Request Received!
                     </h4>
                     <p className="text-xs text-slate-600 mt-1">
-                      Our dispatch team will call you on <strong>{confirmedBooking.customer_phone}</strong> to confirm your ride.
+                      Our dispatch team will call you on <strong>{confirmedBooking.customer_phone}</strong> ({confirmedBooking.customer_name}) to confirm your ride.
                     </p>
                   </div>
 
@@ -353,10 +374,10 @@ export const CustomerView: React.FC = () => {
                       href={generateBookingWhatsAppUrl(confirmedBooking, settings)}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="w-full btn-whatsapp py-3 text-xs font-bold"
+                      className="w-full btn-whatsapp py-3 text-xs font-bold flex items-center justify-center gap-1.5"
                     >
                       <MessageCircle className="w-4 h-4" />
-                      <span>Send Details on WhatsApp</span>
+                      <span>Send Confirmation on WhatsApp</span>
                     </a>
 
                     <button
@@ -369,6 +390,14 @@ export const CustomerView: React.FC = () => {
                 </div>
               ) : (
                 <form onSubmit={handleBookSubmit} className="space-y-4">
+                  
+                  {currentUser?.role === 'customer' && (
+                    <div className="p-2.5 rounded-xl bg-blue-50 text-blue-800 text-xs flex items-center gap-2 border border-blue-200">
+                      <User className="w-4 h-4 text-blue-600 shrink-0" />
+                      <span>Logged in: <strong>{currentUser.name}</strong> ({currentUser.phone})</span>
+                    </div>
+                  )}
+
                   {formError && (
                     <div className="p-2.5 rounded-xl bg-red-50 text-red-700 text-xs flex items-center gap-2 border border-red-200">
                       <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
@@ -402,6 +431,9 @@ export const CustomerView: React.FC = () => {
                       onChange={(e) => setBookingPhone(e.target.value)}
                       className="input-clean text-xs font-medium"
                     />
+                    <p className="text-[11px] text-slate-400">
+                      We'll send booking confirmation and driver details to this number.
+                    </p>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
@@ -453,13 +485,13 @@ export const CustomerView: React.FC = () => {
                       <button
                         type="button"
                         onClick={closeBookingModal}
-                        className="btn-secondary py-2 px-3 text-xs"
+                        className="btn-secondary py-2 px-3 text-xs cursor-pointer"
                       >
                         Cancel
                       </button>
                       <button
                         type="submit"
-                        className="btn-primary py-2 px-4 text-xs font-bold"
+                        className="btn-primary py-2 px-4 text-xs font-bold cursor-pointer"
                       >
                         Confirm Booking
                       </button>

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Vehicle, Booking, AgencySettings } from '../types';
+import { Vehicle, Booking, AgencySettings, UserSession } from '../types';
 import { storageService } from '../services/storageService';
 
 export interface SearchState {
@@ -26,13 +26,23 @@ interface AppContextType {
   searchState: SearchState;
   setSearchState: React.Dispatch<React.SetStateAction<SearchState>>;
 
-  isAdminView: boolean;
-  setIsAdminView: (v: boolean) => void;
-  loginAdmin: (pin: string) => boolean;
-  logoutAdmin: () => void;
+  // Auth & Session
+  currentUser: UserSession | null;
+  loginCustomer: (name: string, phone: string) => void;
+  sendAdminOtp: (name: string, phone: string) => string; // returns generated OTP
+  verifyAdminOtp: (otp: string) => boolean;
+  logout: () => void;
 
-  showAdminLoginModal: boolean;
-  setShowAdminLoginModal: (v: boolean) => void;
+  pendingAdminData: { name: string; phone: string; otp: string } | null;
+  setPendingAdminData: React.Dispatch<React.SetStateAction<{ name: string; phone: string; otp: string } | null>>;
+
+  showAuthModal: boolean;
+  setShowAuthModal: (v: boolean) => void;
+  authModalTab: 'customer' | 'admin';
+  setAuthModalTab: (tab: 'customer' | 'admin') => void;
+
+  showUserBookingsModal: boolean;
+  setShowUserBookingsModal: (v: boolean) => void;
 
   bookingModalVehicle: Vehicle | null;
   openBookingModal: (v: Vehicle) => void;
@@ -54,10 +64,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [vehicles, setVehicles] = useState<Vehicle[]>(storageService.getVehicles);
   const [bookings, setBookings] = useState<Booking[]>(storageService.getBookings);
 
-  const [isAdminView, setIsAdminView] = useState<boolean>(() => {
-    return localStorage.getItem('mohanty_admin_auth') === 'true';
+  // User session state
+  const [currentUser, setCurrentUser] = useState<UserSession | null>(() => {
+    const raw = localStorage.getItem('mohanty_user_session_v5');
+    if (raw) {
+      try { return JSON.parse(raw); } catch { return null; }
+    }
+    return null;
   });
-  const [showAdminLoginModal, setShowAdminLoginModal] = useState<boolean>(false);
+
+  const [pendingAdminData, setPendingAdminData] = useState<{ name: string; phone: string; otp: string } | null>(null);
+  const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
+  const [authModalTab, setAuthModalTab] = useState<'customer' | 'admin'>('customer');
+  const [showUserBookingsModal, setShowUserBookingsModal] = useState<boolean>(false);
+
   const [bookingModalVehicle, setBookingModalVehicle] = useState<Vehicle | null>(null);
 
   const [searchState, setSearchState] = useState<SearchState>({
@@ -116,19 +136,53 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setBookings(updated);
   };
 
-  const loginAdmin = (pin: string): boolean => {
-    if (pin.trim() === '1234' || pin.trim().toLowerCase() === 'admin') {
-      setIsAdminView(true);
-      localStorage.setItem('mohanty_admin_auth', 'true');
-      setShowAdminLoginModal(false);
+  // Auth Operations
+  const loginCustomer = (name: string, phone: string) => {
+    const session: UserSession = {
+      role: 'customer',
+      name: name.trim(),
+      phone: phone.trim(),
+      logged_in_at: new Date().toISOString()
+    };
+    setCurrentUser(session);
+    localStorage.setItem('mohanty_user_session_v5', JSON.stringify(session));
+    setShowAuthModal(false);
+  };
+
+  const sendAdminOtp = (name: string, phone: string): string => {
+    // Generate random 4-digit OTP
+    const generatedOtp = String(Math.floor(1000 + Math.random() * 9000));
+    setPendingAdminData({
+      name: name.trim(),
+      phone: phone.trim(),
+      otp: generatedOtp
+    });
+    return generatedOtp;
+  };
+
+  const verifyAdminOtp = (inputOtp: string): boolean => {
+    if (!pendingAdminData) return false;
+    // Accepts generated OTP or universal master OTP '1234'
+    if (inputOtp.trim() === pendingAdminData.otp || inputOtp.trim() === '1234') {
+      const session: UserSession = {
+        role: 'admin',
+        name: pendingAdminData.name,
+        phone: pendingAdminData.phone,
+        logged_in_at: new Date().toISOString()
+      };
+      setCurrentUser(session);
+      localStorage.setItem('mohanty_user_session_v5', JSON.stringify(session));
+      setPendingAdminData(null);
+      setShowAuthModal(false);
       return true;
     }
     return false;
   };
 
-  const logoutAdmin = () => {
-    setIsAdminView(false);
-    localStorage.removeItem('mohanty_admin_auth');
+  const logout = () => {
+    setCurrentUser(null);
+    localStorage.removeItem('mohanty_user_session_v5');
+    setPendingAdminData(null);
   };
 
   const openBookingModal = (v: Vehicle) => {
@@ -160,12 +214,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       deleteBooking,
       searchState,
       setSearchState,
-      isAdminView,
-      setIsAdminView,
-      loginAdmin,
-      logoutAdmin,
-      showAdminLoginModal,
-      setShowAdminLoginModal,
+      currentUser,
+      loginCustomer,
+      sendAdminOtp,
+      verifyAdminOtp,
+      logout,
+      pendingAdminData,
+      setPendingAdminData,
+      showAuthModal,
+      setShowAuthModal,
+      authModalTab,
+      setAuthModalTab,
+      showUserBookingsModal,
+      setShowUserBookingsModal,
       bookingModalVehicle,
       openBookingModal,
       closeBookingModal,
