@@ -28,6 +28,11 @@ interface AppContextType {
 
   isAdminView: boolean;
   setIsAdminView: (v: boolean) => void;
+  loginAdmin: (pin: string) => boolean;
+  logoutAdmin: () => void;
+
+  showAdminLoginModal: boolean;
+  setShowAdminLoginModal: (v: boolean) => void;
 
   bookingModalVehicle: Vehicle | null;
   openBookingModal: (v: Vehicle) => void;
@@ -49,7 +54,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [vehicles, setVehicles] = useState<Vehicle[]>(storageService.getVehicles);
   const [bookings, setBookings] = useState<Booking[]>(storageService.getBookings);
 
-  const [isAdminView, setIsAdminView] = useState<boolean>(false);
+  const [isAdminView, setIsAdminView] = useState<boolean>(() => {
+    return localStorage.getItem('mohanty_admin_auth') === 'true';
+  });
+  const [showAdminLoginModal, setShowAdminLoginModal] = useState<boolean>(false);
   const [bookingModalVehicle, setBookingModalVehicle] = useState<Vehicle | null>(null);
 
   const [searchState, setSearchState] = useState<SearchState>({
@@ -108,6 +116,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setBookings(updated);
   };
 
+  const loginAdmin = (pin: string): boolean => {
+    if (pin.trim() === '1234' || pin.trim().toLowerCase() === 'admin') {
+      setIsAdminView(true);
+      localStorage.setItem('mohanty_admin_auth', 'true');
+      setShowAdminLoginModal(false);
+      return true;
+    }
+    return false;
+  };
+
+  const logoutAdmin = () => {
+    setIsAdminView(false);
+    localStorage.removeItem('mohanty_admin_auth');
+  };
+
   const openBookingModal = (v: Vehicle) => {
     setBookingModalVehicle(v);
   };
@@ -139,6 +162,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setSearchState,
       isAdminView,
       setIsAdminView,
+      loginAdmin,
+      logoutAdmin,
+      showAdminLoginModal,
+      setShowAdminLoginModal,
       bookingModalVehicle,
       openBookingModal,
       closeBookingModal,
