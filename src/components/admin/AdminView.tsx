@@ -1,0 +1,533 @@
+import React, { useState, useRef } from 'react';
+import { 
+  Car, 
+  Plus, 
+  Upload, 
+  CheckCircle2, 
+  XCircle, 
+  Edit3, 
+  Trash2, 
+  Phone, 
+  MessageCircle, 
+  Users, 
+  Wind, 
+  Save, 
+  X, 
+  ArrowLeft,
+  Image as ImageIcon
+} from 'lucide-react';
+import { useApp } from '../../context/AppContext';
+import { Vehicle } from '../../types';
+import { generateAdminReplyWhatsAppUrl } from '../../services/whatsappService';
+
+export const AdminView: React.FC = () => {
+  const { 
+    vehicles, 
+    addVehicle, 
+    updateVehicle, 
+    deleteVehicle, 
+    toggleVehicleAvailability,
+    bookings, 
+    deleteBooking, 
+    settings, 
+    setIsAdminView 
+  } = useApp();
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  // Form State
+  const [name, setName] = useState('');
+  const [seating, setSeating] = useState(7);
+  const [isAc, setIsAc] = useState(true);
+  const [price, setPrice] = useState(18);
+  const [priceUnit, setPriceUnit] = useState('per km');
+  const [imagePreview, setImagePreview] = useState('https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80');
+  const [description, setDescription] = useState('');
+  const [isAvailable, setIsAvailable] = useState(true);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleOpenAdd = () => {
+    setEditingId(null);
+    setName('');
+    setSeating(7);
+    setIsAc(true);
+    setPrice(18);
+    setPriceUnit('per km');
+    setImagePreview('https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80');
+    setDescription('');
+    setIsAvailable(true);
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEdit = (v: Vehicle) => {
+    setEditingId(v.id);
+    setName(v.name);
+    setSeating(v.seating_capacity);
+    setIsAc(v.is_ac);
+    setPrice(v.price);
+    setPriceUnit(v.price_unit);
+    setImagePreview(v.primary_image_url);
+    setDescription(v.description || '');
+    setIsAvailable(v.is_available);
+    setIsModalOpen(true);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          setImagePreview(reader.result);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+
+    if (editingId) {
+      updateVehicle({
+        id: editingId,
+        name: name.trim(),
+        seating_capacity: Number(seating),
+        is_ac: isAc,
+        price: Number(price),
+        price_unit: priceUnit,
+        primary_image_url: imagePreview,
+        is_available: isAvailable,
+        description: description.trim() || undefined
+      });
+    } else {
+      addVehicle({
+        id: `veh-${Date.now()}`,
+        name: name.trim(),
+        seating_capacity: Number(seating),
+        is_ac: isAc,
+        price: Number(price),
+        price_unit: priceUnit,
+        primary_image_url: imagePreview,
+        is_available: isAvailable,
+        description: description.trim() || undefined
+      });
+    }
+
+    setIsModalOpen(false);
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-100 text-slate-900 pb-16">
+      
+      {/* Admin Top Navigation */}
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center font-bold">
+              <Car className="w-5 h-5" />
+            </div>
+            <div>
+              <h1 className="text-base font-extrabold text-slate-900 font-display">
+                Admin Panel — Fleet & Bookings
+              </h1>
+              <p className="text-xs text-slate-500">{settings.agency_name}</p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => setIsAdminView(false)}
+            className="btn-secondary py-2 px-3.5 text-xs font-semibold cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Go to Customer Website</span>
+          </button>
+        </div>
+      </header>
+
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-8 space-y-10">
+        
+        {/* 1. Fleet & Availability Management Section */}
+        <section className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+            <div>
+              <h2 className="text-xl font-bold text-slate-900 font-display">
+                Cars & Availability Management
+              </h2>
+              <p className="text-xs text-slate-500">
+                Add car photos from your computer, set prices, and switch Available / Not Available with 1-click.
+              </p>
+            </div>
+
+            <button
+              onClick={handleOpenAdd}
+              className="btn-primary py-2.5 px-4 text-xs font-bold shadow-md cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add New Car</span>
+            </button>
+          </div>
+
+          {/* Cars Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {vehicles.map(v => (
+              <div 
+                key={v.id}
+                className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm flex flex-col justify-between"
+              >
+                <div>
+                  {/* Photo & Status */}
+                  <div className="relative h-44 w-full bg-slate-100">
+                    <img 
+                      src={v.primary_image_url} 
+                      alt={v.name} 
+                      className="w-full h-full object-cover"
+                    />
+
+                    {/* Status Pill */}
+                    <span className={`absolute top-3 right-3 px-2.5 py-1 rounded-full text-[11px] font-extrabold uppercase shadow-sm flex items-center gap-1 ${
+                      v.is_available ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'
+                    }`}>
+                      {v.is_available ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
+                      {v.is_available ? 'Available' : 'Not Available'}
+                    </span>
+                  </div>
+
+                  {/* Body */}
+                  <div className="p-4 space-y-3">
+                    <div>
+                      <h3 className="text-base font-bold text-slate-900">{v.name}</h3>
+                      <div className="flex items-center gap-2 text-xs text-slate-600 mt-1">
+                        <span>👥 {v.seating_capacity} Seats</span>
+                        <span>•</span>
+                        <span>❄️ {v.is_ac ? 'AC' : 'Non-AC'}</span>
+                        <span>•</span>
+                        <span className="font-bold text-blue-600">₹{v.price}/{v.price_unit}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Actions: Toggle Availability & Edit/Delete */}
+                <div className="p-4 pt-0 border-t border-slate-100 mt-2 space-y-2">
+                  
+                  {/* Big 1-Click Availability Toggle */}
+                  <button
+                    onClick={() => toggleVehicleAvailability(v.id)}
+                    className={`w-full py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
+                      v.is_available 
+                        ? 'bg-emerald-50 text-emerald-700 hover:bg-red-50 hover:text-red-700 border border-emerald-200 hover:border-red-300' 
+                        : 'bg-red-50 text-red-700 hover:bg-emerald-50 hover:text-emerald-700 border border-red-200 hover:border-emerald-300'
+                    }`}
+                  >
+                    {v.is_available ? (
+                      <>
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                        <span>Available (Click to Mark Busy)</span>
+                      </>
+                    ) : (
+                      <>
+                        <XCircle className="w-4 h-4 text-red-600" />
+                        <span>Not Available (Click to Mark Free)</span>
+                      </>
+                    )}
+                  </button>
+
+                  <div className="flex items-center justify-end gap-2 pt-1">
+                    <button
+                      onClick={() => handleOpenEdit(v)}
+                      className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium flex items-center gap-1 cursor-pointer"
+                      title="Edit Car Details"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                      <span>Edit</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        if (window.confirm(`Delete ${v.name}?`)) deleteVehicle(v.id);
+                      }}
+                      className="p-2 rounded-lg bg-slate-100 hover:bg-red-50 text-red-600 text-xs font-medium flex items-center gap-1 cursor-pointer"
+                      title="Delete Car"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Delete</span>
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* 2. Customer Booking Requests Section */}
+        <section className="space-y-4">
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-slate-900 font-display">
+                Customer Booking Requests ({bookings.length})
+              </h2>
+              <p className="text-xs text-slate-500">
+                Call customers directly or reply on WhatsApp to confirm bookings.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            {bookings.length > 0 ? (
+              bookings.map(b => (
+                <div 
+                  key={b.id}
+                  className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4"
+                >
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                        {b.booking_code}
+                      </span>
+                      <h4 className="text-sm font-bold text-slate-900">{b.customer_name}</h4>
+                      <span className="text-xs text-slate-500 font-medium">({b.customer_phone})</span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
+                      <span>🚐 <strong>{b.vehicle_name}</strong></span>
+                      <span>📍 {b.pickup_location} → {b.drop_location}</span>
+                      <span>📅 {b.travel_date} {b.pickup_time ? `(${b.pickup_time})` : ''}</span>
+                    </div>
+
+                    {b.special_notes && (
+                      <p className="text-xs text-slate-500 italic">
+                        Note: "{b.special_notes}"
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Actions: Call, WhatsApp, Delete */}
+                  <div className="flex items-center gap-2 pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
+                    <a
+                      href={`tel:${b.customer_phone.replace(/\s+/g, '')}`}
+                      className="btn-secondary py-2 px-3 text-xs font-semibold"
+                    >
+                      <Phone className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Call</span>
+                    </a>
+
+                    <a
+                      href={generateAdminReplyWhatsAppUrl(b, settings)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn-whatsapp py-2 px-3 text-xs font-semibold"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" />
+                      <span>WhatsApp</span>
+                    </a>
+
+                    <button
+                      onClick={() => {
+                        if (window.confirm('Delete this booking record?')) deleteBooking(b.id);
+                      }}
+                      className="p-2 rounded-xl bg-slate-100 hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors"
+                      title="Delete Request"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="p-8 text-center bg-white rounded-2xl border border-slate-200 text-slate-500 text-xs">
+                No active booking requests right now.
+              </div>
+            )}
+          </div>
+        </section>
+
+      </div>
+
+      {/* 3. Add / Edit Car Modal with Image Upload */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden animate-in fade-in">
+            
+            <div className="p-5 bg-slate-900 text-white flex items-center justify-between">
+              <h3 className="text-base font-bold font-display text-white">
+                {editingId ? 'Edit Car Details' : 'Add New Car to Fleet'}
+              </h3>
+              <button 
+                onClick={() => setIsModalOpen(false)}
+                className="p-1 text-slate-400 hover:text-white rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              
+              {/* Car Name */}
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-slate-700">
+                  Car Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Toyota Innova Crysta"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="input-clean text-xs font-semibold"
+                />
+              </div>
+
+              {/* Image Upload Box */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-700">
+                  Car Image (Upload File from Device OR Enter URL)
+                </label>
+                
+                <div className="flex items-center gap-4">
+                  {/* Image Preview */}
+                  <div className="w-24 h-18 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center">
+                    {imagePreview ? (
+                      <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <ImageIcon className="w-6 h-6 text-slate-400" />
+                    )}
+                  </div>
+
+                  <div className="flex-1 space-y-2">
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      accept="image/*"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="btn-secondary w-full py-2 text-xs font-semibold cursor-pointer"
+                    >
+                      <Upload className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Upload Photo from Computer</span>
+                    </button>
+
+                    <input
+                      type="text"
+                      placeholder="Or paste image URL (https://...)"
+                      value={imagePreview}
+                      onChange={(e) => setImagePreview(e.target.value)}
+                      className="input-clean text-xs font-medium"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Seats, AC, Rate */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold text-slate-700">Seats</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={seating}
+                    onChange={(e) => setSeating(parseInt(e.target.value) || 1)}
+                    className="input-clean text-xs font-semibold"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold text-slate-700">AC Available</label>
+                  <select
+                    value={isAc ? 'true' : 'false'}
+                    onChange={(e) => setIsAc(e.target.value === 'true')}
+                    className="input-clean text-xs font-semibold"
+                  >
+                    <option value="true">Yes (AC)</option>
+                    <option value="false">No (Non-AC)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold text-slate-700">Tariff (₹)</label>
+                  <input
+                    type="number"
+                    required
+                    value={price}
+                    onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
+                    className="input-clean text-xs font-bold text-blue-600"
+                  />
+                </div>
+              </div>
+
+              {/* Price Unit & Availability */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold text-slate-700">Rate Unit</label>
+                  <select
+                    value={priceUnit}
+                    onChange={(e) => setPriceUnit(e.target.value)}
+                    className="input-clean text-xs font-semibold"
+                  >
+                    <option value="per km">per km</option>
+                    <option value="per day">per day</option>
+                    <option value="fixed fare">fixed fare</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold text-slate-700">Initial Status</label>
+                  <select
+                    value={isAvailable ? 'true' : 'false'}
+                    onChange={(e) => setIsAvailable(e.target.value === 'true')}
+                    className="input-clean text-xs font-semibold"
+                  >
+                    <option value="true">Available Now</option>
+                    <option value="false">Not Available</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Description */}
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-slate-700">Description (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Clean interiors, pushback captain seats"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="input-clean text-xs font-medium"
+                />
+              </div>
+
+              {/* Buttons */}
+              <div className="pt-3 border-t border-slate-100 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="btn-secondary py-2 px-3 text-xs cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary py-2 px-5 text-xs font-bold cursor-pointer"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  <span>{editingId ? 'Save Changes' : 'Add Car'}</span>
+                </button>
+              </div>
+
+            </form>
+
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+};
