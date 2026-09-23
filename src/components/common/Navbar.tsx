@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Car, 
   Phone, 
@@ -8,7 +8,8 @@ import {
   User, 
   Calendar,
   ShieldCheck,
-  Headphones
+  Headphones,
+  Download
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
@@ -21,6 +22,29 @@ export const Navbar: React.FC = () => {
     setAuthModalTab,
     setShowUserBookingsModal
   } = useApp();
+
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstallApp = async () => {
+    if (installPrompt) {
+      installPrompt.prompt();
+      const choice = await installPrompt.userChoice;
+      if (choice.outcome === 'accepted') {
+        setInstallPrompt(null);
+      }
+    } else {
+      alert("To install on your phone:\n1. Open Chrome/Safari menu (three dots or share button)\n2. Tap 'Add to Home screen' or 'Install App'.");
+    }
+  };
 
   const isAdmin = currentUser?.role === 'admin';
   const isCustomer = currentUser?.role === 'customer';
@@ -88,6 +112,16 @@ export const Navbar: React.FC = () => {
               /* 2. If Customer or Guest */
               <div className="flex items-center gap-2">
                 
+                {/* 100% Free Install App Button */}
+                <button
+                  onClick={handleInstallApp}
+                  className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-xs font-bold border border-emerald-200 transition-colors cursor-pointer"
+                  title="Install Mohanty Travels Free on your Phone"
+                >
+                  <Download className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Install App Free</span>
+                </button>
+
                 {/* 24/7 Helpline Button (Desktop) */}
                 {settings.helpline_number && (
                   <a
@@ -96,7 +130,7 @@ export const Navbar: React.FC = () => {
                     title="24/7 Agency Emergency Helpline"
                   >
                     <Headphones className="w-3.5 h-3.5 text-purple-600" />
-                    <span>24/7 Helpline</span>
+                    <span>Helpline</span>
                   </a>
                 )}
 
