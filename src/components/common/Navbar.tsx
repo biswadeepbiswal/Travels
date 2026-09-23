@@ -1,5 +1,5 @@
 import React from 'react';
-import { Car, Phone, MessageCircle, ShieldCheck } from 'lucide-react';
+import { Car, Phone, MessageCircle } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
 export const Navbar: React.FC = () => {
@@ -28,7 +28,7 @@ export const Navbar: React.FC = () => {
             </div>
           </div>
 
-          {/* Quick Contact & Admin Switcher */}
+          {/* Customer Action Buttons */}
           <div className="flex items-center gap-2.5">
             {!isAdminView ? (
               <>
@@ -39,7 +39,7 @@ export const Navbar: React.FC = () => {
                   className="btn-whatsapp py-2 px-3.5 text-xs font-semibold"
                 >
                   <MessageCircle className="w-4 h-4" />
-                  <span className="hidden sm:inline">WhatsApp</span>
+                  <span>WhatsApp</span>
                 </a>
 
                 <a
@@ -47,17 +47,8 @@ export const Navbar: React.FC = () => {
                   className="btn-primary py-2 px-3.5 text-xs font-semibold"
                 >
                   <Phone className="w-4 h-4" />
-                  <span className="hidden sm:inline">Call Now</span>
+                  <span>Call Us</span>
                 </a>
-
-                <button
-                  onClick={() => setIsAdminView(true)}
-                  className="btn-secondary py-2 px-3 text-xs font-semibold cursor-pointer"
-                  title="Admin Panel"
-                >
-                  <ShieldCheck className="w-4 h-4 text-blue-600" />
-                  <span>Admin</span>
-                </button>
               </>
             ) : (
               <button
@@ -65,7 +56,7 @@ export const Navbar: React.FC = () => {
                 className="btn-primary py-2 px-4 text-xs font-semibold cursor-pointer"
               >
                 <Car className="w-4 h-4" />
-                <span>Customer View</span>
+                <span>View Customer Website</span>
               </button>
             )}
           </div>

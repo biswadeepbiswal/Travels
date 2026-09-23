@@ -23,7 +23,7 @@ export function generateBookingWhatsAppUrl(
     `📍 *Pickup:* ${booking.pickup_location}\n` +
     `🏁 *Destination:* ${booking.drop_location}\n` +
     `📅 *Date:* ${booking.travel_date} ${booking.pickup_time ? `(${booking.pickup_time})` : ''}\n` +
-    `💰 *Estimated Fare:* ₹${booking.estimated_price.toLocaleString('en-IN')}\n` +
+    (booking.special_notes ? `📝 *Notes:* ${booking.special_notes}\n` : '') +
     `----------------------------------\n` +
     `Please confirm car availability and driver details.`
   );
@@ -39,12 +39,11 @@ export function generateVehicleInquiryWhatsAppUrl(
 ): string {
   const phone = formatWhatsAppNumber(agency.whatsapp_number);
   const text = encodeURIComponent(
-    `Hello *${agency.agency_name}*, I want to inquire about *${vehicle.name}*:\n` +
+    `Hello *${agency.agency_name}*, I want to inquire about *${vehicle.name}* (${vehicle.seating_capacity} Seater ${vehicle.is_ac ? 'AC' : 'Non-AC'}):\n` +
     `- *Pickup:* ${pickup || 'Bhubaneswar'}\n` +
     `- *Destination:* ${drop || 'Puri'}\n` +
     `- *Date:* ${travelDate || 'Tomorrow'}\n` +
-    `- *Rate:* ₹${vehicle.price}/${vehicle.price_unit}\n` +
-    `Is this car available? Please share final fare.`
+    `Is this car available? Please share quote and availability.`
   );
   return `https://wa.me/${phone}?text=${text}`;
 }
@@ -56,7 +55,7 @@ export function generateAdminReplyWhatsAppUrl(
   const phone = formatWhatsAppNumber(booking.customer_phone);
   const text = encodeURIComponent(
     `Hello *${booking.customer_name}*, thank you for choosing *${agency.agency_name}*!\n` +
-    `Regarding your cab request for *${booking.vehicle_name}* on *${booking.travel_date}* (${booking.pickup_location} → ${booking.drop_location}):\n` +
+    `Regarding your cab booking for *${booking.vehicle_name}* on *${booking.travel_date}* (${booking.pickup_location} → ${booking.drop_location}):\n` +
     `Your ride is confirmed. For assistance, call us at ${agency.phone_primary}.`
   );
   return `https://wa.me/${phone}?text=${text}`;

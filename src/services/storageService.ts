@@ -2,9 +2,9 @@ import { Vehicle, Booking, AgencySettings } from '../types';
 import { initialVehicles, initialBookings, initialAgencySettings } from '../data/defaultData';
 
 const KEYS = {
-  VEHICLES: 'mohanty_travels_vehicles_v3',
-  BOOKINGS: 'mohanty_travels_bookings_v3',
-  SETTINGS: 'mohanty_travels_settings_v3'
+  VEHICLES: 'mohanty_travels_vehicles_v4',
+  BOOKINGS: 'mohanty_travels_bookings_v4',
+  SETTINGS: 'mohanty_travels_settings_v4'
 };
 
 export const storageService = {
