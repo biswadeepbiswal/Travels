@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Calendar, Clock, MapPin, Car, Phone, MessageCircle, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { X, Calendar, MapPin, Car, Phone, MessageCircle, AlertCircle, CheckCircle2, Clock, XCircle } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { generateBookingWhatsAppUrl } from '../../services/whatsappService';
 
@@ -14,7 +14,7 @@ export const UserBookingsModal: React.FC = () => {
 
   if (!showUserBookingsModal) return null;
 
-  // Filter bookings for current user's phone or show all if name matches
+  // Filter bookings for current user's phone or matching name
   const userBookings = bookings.filter(b => {
     if (!currentUser) return false;
     const userPhoneDigits = currentUser.phone.replace(/\D/g, '');
@@ -38,10 +38,10 @@ export const UserBookingsModal: React.FC = () => {
             </div>
             <div>
               <h3 className="text-base font-bold font-display text-white">
-                My Bookings & Inquiries
+                My Cab Bookings & Status
               </h3>
               <p className="text-xs text-slate-400">
-                Logged in as: <strong className="text-white">{currentUser?.name}</strong> ({currentUser?.phone})
+                Registered Profile: <strong className="text-white">{currentUser?.name}</strong> ({currentUser?.phone})
               </p>
             </div>
           </div>
@@ -77,17 +77,23 @@ export const UserBookingsModal: React.FC = () => {
           ) : (
             <div className="space-y-4">
               <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                {userBookings.length} Booking{userBookings.length > 1 ? 's' : ''} Found
+                {userBookings.length} Booking Request{userBookings.length > 1 ? 's' : ''}
               </p>
 
               {userBookings.map(b => (
                 <div 
                   key={b.id}
-                  className="card-clean p-4 border border-slate-200 hover:border-blue-300 transition-all space-y-3"
+                  className={`card-clean p-4 border transition-all space-y-3 ${
+                    b.status === 'confirmed' 
+                      ? 'border-emerald-200 bg-emerald-50/20' 
+                      : b.status === 'cancelled'
+                      ? 'border-red-200 bg-red-50/20'
+                      : 'border-amber-200 bg-amber-50/20'
+                  }`}
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
                     <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 rounded font-mono font-bold text-xs bg-blue-50 text-blue-700 border border-blue-200">
+                      <span className="px-2 py-0.5 rounded font-mono font-bold text-xs bg-slate-900 text-white">
                         {b.booking_code}
                       </span>
                       <span className="font-bold text-sm text-slate-900">
@@ -95,11 +101,39 @@ export const UserBookingsModal: React.FC = () => {
                       </span>
                     </div>
 
-                    <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1 self-start sm:self-auto">
-                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                      Confirmed by Agency
-                    </span>
+                    {/* Dynamic Status Badge */}
+                    {b.status === 'confirmed' ? (
+                      <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1 self-start sm:self-auto">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                        ✅ Confirmed by Admin
+                      </span>
+                    ) : b.status === 'cancelled' ? (
+                      <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-red-100 text-red-800 border border-red-300 flex items-center gap-1 self-start sm:self-auto">
+                        <XCircle className="w-3.5 h-3.5 text-red-600" />
+                        ❌ Cancelled
+                      </span>
+                    ) : (
+                      <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1 self-start sm:self-auto animate-pulse">
+                        <Clock className="w-3.5 h-3.5 text-amber-600" />
+                        ⏳ Pending Admin Confirmation
+                      </span>
+                    )}
                   </div>
+
+                  {/* Status Helper Message */}
+                  {b.status === 'pending' && (
+                    <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span>Admin is reviewing your trip. Once approved, you will receive a confirmation message on WhatsApp (<strong>{b.customer_phone}</strong>).</span>
+                    </div>
+                  )}
+
+                  {b.status === 'confirmed' && (
+                    <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>Cab is reserved! Driver details will be sent before pickup.</span>
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-600">
                     <div className="flex items-center gap-1.5">
@@ -109,13 +143,13 @@ export const UserBookingsModal: React.FC = () => {
 
                     <div className="flex items-center gap-1.5">
                       <Calendar className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                      <span><strong>Date & Time:</strong> {b.travel_date} at {b.pickup_time}</span>
+                      <span><strong>Date & Time:</strong> {b.travel_date} {b.pickup_time ? `at ${b.pickup_time}` : ''}</span>
                     </div>
                   </div>
 
                   {b.special_notes && (
-                    <p className="text-[11px] bg-slate-50 p-2 rounded-lg text-slate-600 border border-slate-100">
-                      <strong>Note:</strong> {b.special_notes}
+                    <p className="text-[11px] bg-white p-2 rounded-lg text-slate-600 border border-slate-200">
+                      <strong>Special Request:</strong> {b.special_notes}
                     </p>
                   )}
 
@@ -153,7 +187,7 @@ export const UserBookingsModal: React.FC = () => {
         {/* Footer */}
         <div className="p-4 bg-slate-50 border-t border-slate-200 text-center shrink-0">
           <p className="text-xs text-slate-500">
-            For any changes or queries, call us directly at <a href={`tel:${settings.phone_primary}`} className="font-bold text-blue-600">{settings.phone_primary}</a>
+            For urgent assistance or modifications, call us at <a href={`tel:${settings.phone_primary}`} className="font-bold text-blue-600">{settings.phone_primary}</a>
           </p>
         </div>
 

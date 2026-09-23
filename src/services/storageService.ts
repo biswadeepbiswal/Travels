@@ -78,6 +78,13 @@ export const storageService = {
     return updated;
   },
 
+  updateBookingStatus(id: string, status: Booking['status']): Booking[] {
+    const existing = this.getBookings();
+    const updated = existing.map(b => b.id === id ? { ...b, status } : b);
+    this.saveBookings(updated);
+    return updated;
+  },
+
   resetDefaults(): void {
     localStorage.setItem(KEYS.VEHICLES, JSON.stringify(initialVehicles));
     localStorage.setItem(KEYS.BOOKINGS, JSON.stringify(initialBookings));

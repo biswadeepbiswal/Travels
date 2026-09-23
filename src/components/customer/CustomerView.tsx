@@ -353,19 +353,25 @@ export const CustomerView: React.FC = () => {
             <div className="p-6">
               {confirmedBooking ? (
                 <div className="text-center space-y-4 py-2">
-                  <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
-                    <CheckCircle2 className="w-8 h-8" />
+                  <div className="w-14 h-14 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto">
+                    <Clock className="w-8 h-8" />
                   </div>
 
-                  <div>
-                    <span className="text-xs font-bold font-mono bg-blue-50 text-blue-700 px-3 py-1 rounded-full border border-blue-200">
-                      ID: {confirmedBooking.booking_code}
-                    </span>
-                    <h4 className="text-xl font-bold text-slate-900 mt-2">
-                      Booking Request Received!
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="text-xs font-bold font-mono bg-slate-100 text-slate-800 px-3 py-1 rounded-full border border-slate-300">
+                        Booking ID: {confirmedBooking.booking_code}
+                      </span>
+                      <span className="text-[11px] font-bold bg-amber-100 text-amber-800 px-2.5 py-0.5 rounded-full border border-amber-300 flex items-center gap-1">
+                        ⏳ Pending Admin Confirmation
+                      </span>
+                    </div>
+
+                    <h4 className="text-xl font-bold text-slate-900 pt-1">
+                      Booking Request Submitted!
                     </h4>
-                    <p className="text-xs text-slate-600 mt-1">
-                      Our dispatch team will call you on <strong>{confirmedBooking.customer_phone}</strong> ({confirmedBooking.customer_name}) to confirm your ride.
+                    <p className="text-xs text-slate-600">
+                      Your booking has been forwarded to the Mohanty Travels dispatch team. Our admin will review and <strong>send a confirmation message to your WhatsApp number ({confirmedBooking.customer_phone})</strong>.
                     </p>
                   </div>
 
@@ -377,14 +383,14 @@ export const CustomerView: React.FC = () => {
                       className="w-full btn-whatsapp py-3 text-xs font-bold flex items-center justify-center gap-1.5"
                     >
                       <MessageCircle className="w-4 h-4" />
-                      <span>Send Confirmation on WhatsApp</span>
+                      <span>Notify Agency on WhatsApp</span>
                     </a>
 
                     <button
                       onClick={closeBookingModal}
                       className="w-full btn-secondary py-2 text-xs font-semibold cursor-pointer"
                     >
-                      Close / Done
+                      Done / Close
                     </button>
                   </div>
                 </div>

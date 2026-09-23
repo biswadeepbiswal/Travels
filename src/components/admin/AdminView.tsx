@@ -18,11 +18,13 @@ import {
   MapPin,
   Building2,
   ShieldCheck,
-  UserCheck
+  Clock,
+  Send,
+  Check
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { Vehicle, AgencySettings } from '../../types';
-import { generateAdminReplyWhatsAppUrl } from '../../services/whatsappService';
+import { Vehicle, AgencySettings, Booking } from '../../types';
+import { generateAdminBookingConfirmationWhatsAppUrl } from '../../services/whatsappService';
 
 export const AdminView: React.FC = () => {
   const { 
@@ -32,6 +34,7 @@ export const AdminView: React.FC = () => {
     deleteVehicle, 
     toggleVehicleAvailability,
     bookings, 
+    updateBookingStatus,
     deleteBooking, 
     settings, 
     updateSettings,
@@ -40,6 +43,7 @@ export const AdminView: React.FC = () => {
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<'cars' | 'bookings' | 'profile'>('cars');
+  const [bookingFilter, setBookingFilter] = useState<'all' | 'pending' | 'confirmed'>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -56,6 +60,15 @@ export const AdminView: React.FC = () => {
   const [profileSaved, setProfileSaved] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const pendingBookings = bookings.filter(b => b.status === 'pending');
+  const confirmedBookings = bookings.filter(b => b.status === 'confirmed');
+
+  const filteredBookings = bookings.filter(b => {
+    if (bookingFilter === 'pending') return b.status === 'pending';
+    if (bookingFilter === 'confirmed') return b.status === 'confirmed';
+    return true;
+  });
 
   const handleOpenAdd = () => {
     setEditingId(null);
@@ -128,6 +141,15 @@ export const AdminView: React.FC = () => {
     setTimeout(() => setProfileSaved(false), 3000);
   };
 
+  const handleConfirmAndSendWhatsApp = (booking: Booking) => {
+    // 1. Update status to confirmed in database/state
+    updateBookingStatus(booking.id, 'confirmed');
+
+    // 2. Open WhatsApp to send official confirmation to user's registered phone
+    const url = generateAdminBookingConfirmationWhatsAppUrl(booking, settings);
+    window.open(url, '_blank');
+  };
+
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900 pb-16">
       
@@ -189,7 +211,7 @@ export const AdminView: React.FC = () => {
 
           <button
             onClick={() => setActiveTab('bookings')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-colors cursor-pointer relative ${
               activeTab === 'bookings' 
                 ? 'bg-blue-600 text-white shadow-sm' 
                 : 'text-slate-600 hover:bg-slate-100'
@@ -197,6 +219,11 @@ export const AdminView: React.FC = () => {
           >
             <ClipboardList className="w-4 h-4" />
             <span>Customer Bookings ({bookings.length})</span>
+            {pendingBookings.length > 0 && (
+              <span className="bg-amber-400 text-slate-950 font-black text-[10px] px-2 py-0.2 rounded-full">
+                {pendingBookings.length} Pending
+              </span>
+            )}
           </button>
 
           <button
@@ -227,7 +254,7 @@ export const AdminView: React.FC = () => {
 
               <button
                 onClick={handleOpenAdd}
-                className="btn-primary py-2.5 px-4 text-xs font-bold shadow-md cursor-pointer"
+                className="btn-primary py-2.5 px-4 text-xs font-bold shadow-md cursor-pointer flex items-center gap-1.5"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add New Car</span>
@@ -329,81 +356,188 @@ export const AdminView: React.FC = () => {
         {/* 2. CUSTOMER BOOKINGS TAB */}
         {activeTab === 'bookings' && (
           <div className="space-y-4">
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+            
+            {/* Header & Filter Tabs */}
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h2 className="text-lg font-bold text-slate-900 font-display">
                   Customer Booking Requests ({bookings.length})
                 </h2>
                 <p className="text-xs text-slate-500">
-                  Call or WhatsApp customers directly to confirm their trip and timing.
+                  Review pending bookings and click "Confirm & Send WhatsApp" to notify the customer on their mobile.
                 </p>
+              </div>
+
+              {/* Status Filters */}
+              <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl">
+                <button
+                  onClick={() => setBookingFilter('all')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                    bookingFilter === 'all' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  All ({bookings.length})
+                </button>
+
+                <button
+                  onClick={() => setBookingFilter('pending')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1 ${
+                    bookingFilter === 'pending' ? 'bg-amber-500 text-white shadow-sm' : 'text-amber-700 hover:text-amber-900'
+                  }`}
+                >
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>Pending ({pendingBookings.length})</span>
+                </button>
+
+                <button
+                  onClick={() => setBookingFilter('confirmed')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1 ${
+                    bookingFilter === 'confirmed' ? 'bg-emerald-600 text-white shadow-sm' : 'text-emerald-700 hover:text-emerald-900'
+                  }`}
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>Confirmed ({confirmedBookings.length})</span>
+                </button>
               </div>
             </div>
 
-            <div className="space-y-3">
-              {bookings.length > 0 ? (
-                bookings.map(b => (
+            {/* Bookings List */}
+            <div className="space-y-4">
+              {filteredBookings.length > 0 ? (
+                filteredBookings.map(b => (
                   <div 
                     key={b.id}
-                    className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4"
+                    className={`bg-white p-5 rounded-2xl border shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-5 ${
+                      b.status === 'pending' 
+                        ? 'border-amber-300 ring-2 ring-amber-100 bg-amber-50/10' 
+                        : b.status === 'confirmed'
+                        ? 'border-emerald-200 bg-emerald-50/10'
+                        : 'border-slate-200'
+                    }`}
                   >
-                    <div className="space-y-1.5">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                    {/* Left: Booking Details */}
+                    <div className="space-y-2 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono text-xs font-bold text-slate-900 bg-slate-100 px-2.5 py-1 rounded border border-slate-300">
                           {b.booking_code}
                         </span>
-                        <h4 className="text-sm font-bold text-slate-900">{b.customer_name}</h4>
-                        <span className="text-xs text-slate-500 font-medium">({b.customer_phone})</span>
+
+                        <h4 className="text-base font-bold text-slate-900">{b.customer_name}</h4>
+                        <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
+                          📞 {b.customer_phone}
+                        </span>
+
+                        {/* Status Badge */}
+                        {b.status === 'pending' ? (
+                          <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1">
+                            <Clock className="w-3 h-3 text-amber-700" />
+                            Pending Approval
+                          </span>
+                        ) : b.status === 'confirmed' ? (
+                          <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                            Confirmed
+                          </span>
+                        ) : (
+                          <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700">
+                            {b.status}
+                          </span>
+                        )}
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
-                        <span>🚐 <strong>{b.vehicle_name}</strong></span>
-                        <span>📍 {b.pickup_location} → {b.drop_location}</span>
-                        <span>📅 {b.travel_date} {b.pickup_time ? `(${b.pickup_time})` : ''}</span>
+                      <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-slate-700 font-medium">
+                        <span className="text-blue-700 font-bold bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                          🚐 {b.vehicle_name}
+                        </span>
+                        <span>📍 <strong>Pickup:</strong> {b.pickup_location}</span>
+                        <span>🏁 <strong>Drop:</strong> {b.drop_location}</span>
+                        <span>📅 <strong>Travel:</strong> {b.travel_date} {b.pickup_time ? `(${b.pickup_time})` : ''}</span>
                       </div>
 
                       {b.special_notes && (
-                        <p className="text-xs text-slate-500 italic">
-                          Note: "{b.special_notes}"
+                        <p className="text-xs text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-200">
+                          <strong>Note:</strong> "{b.special_notes}"
                         </p>
                       )}
+
+                      <div className="text-[11px] text-slate-400">
+                        Received on: {new Date(b.created_at).toLocaleString()}
+                      </div>
                     </div>
 
-                    {/* Actions: Call, WhatsApp, Delete */}
-                    <div className="flex items-center gap-2 pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
+                    {/* Right: Actions */}
+                    <div className="flex flex-wrap items-center gap-2 shrink-0 pt-3 lg:pt-0 border-t lg:border-t-0 border-slate-100">
+                      
+                      {/* Big Confirm & WhatsApp Button */}
+                      {b.status === 'pending' ? (
+                        <button
+                          onClick={() => handleConfirmAndSendWhatsApp(b)}
+                          className="btn-whatsapp py-2.5 px-4 text-xs font-bold shadow-md flex items-center gap-2 cursor-pointer"
+                        >
+                          <Send className="w-4 h-4" />
+                          <span>Confirm & Send WhatsApp</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            const url = generateAdminBookingConfirmationWhatsAppUrl(b, settings);
+                            window.open(url, '_blank');
+                          }}
+                          className="btn-whatsapp py-2 px-3 text-xs font-semibold flex items-center gap-1.5"
+                          title="Resend WhatsApp Confirmation Message"
+                        >
+                          <MessageCircle className="w-4 h-4" />
+                          <span>Resend WhatsApp</span>
+                        </button>
+                      )}
+
+                      {/* Call Customer */}
                       <a
                         href={`tel:${b.customer_phone.replace(/\s+/g, '')}`}
                         className="btn-secondary py-2 px-3 text-xs font-semibold"
+                        title="Call Customer Directly"
                       >
                         <Phone className="w-3.5 h-3.5 text-blue-600" />
                         <span>Call</span>
                       </a>
 
-                      <a
-                        href={generateAdminReplyWhatsAppUrl(b, settings)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="btn-whatsapp py-2 px-3 text-xs font-semibold"
-                      >
-                        <MessageCircle className="w-3.5 h-3.5" />
-                        <span>WhatsApp</span>
-                      </a>
+                      {/* Status Toggle / Cancel */}
+                      {b.status === 'confirmed' ? (
+                        <button
+                          onClick={() => updateBookingStatus(b.id, 'pending')}
+                          className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-medium cursor-pointer"
+                          title="Revert to Pending"
+                        >
+                          Mark Pending
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => updateBookingStatus(b.id, 'confirmed')}
+                          className="p-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold cursor-pointer"
+                          title="Mark Confirmed without sending message"
+                        >
+                          <Check className="w-4 h-4" />
+                        </button>
+                      )}
 
+                      {/* Delete */}
                       <button
                         onClick={() => {
-                          if (window.confirm('Delete this booking request?')) deleteBooking(b.id);
+                          if (window.confirm('Delete this booking record?')) deleteBooking(b.id);
                         }}
                         className="p-2 rounded-xl bg-slate-100 hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors cursor-pointer"
                         title="Delete Request"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
+
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="p-8 text-center bg-white rounded-2xl border border-slate-200 text-slate-500 text-xs">
-                  No active booking requests right now.
+                <div className="p-10 text-center bg-white rounded-2xl border border-slate-200 text-slate-500 text-xs space-y-1">
+                  <p className="font-bold text-slate-700">No {bookingFilter !== 'all' ? bookingFilter : ''} bookings found</p>
+                  <p className="text-slate-400">All customer booking requests will appear here in real-time.</p>
                 </div>
               )}
             </div>

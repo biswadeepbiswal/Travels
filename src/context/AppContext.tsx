@@ -21,6 +21,7 @@ interface AppContextType {
 
   bookings: Booking[];
   createBooking: (b: Omit<Booking, 'id' | 'booking_code' | 'created_at' | 'status'>) => Booking;
+  updateBookingStatus: (id: string, status: Booking['status']) => void;
   deleteBooking: (id: string) => void;
 
   searchState: SearchState;
@@ -131,6 +132,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return created;
   };
 
+  const updateBookingStatus = (id: string, status: Booking['status']) => {
+    const updated = storageService.updateBookingStatus(id, status);
+    setBookings(updated);
+  };
+
   const deleteBooking = (id: string) => {
     const updated = storageService.deleteBooking(id);
     setBookings(updated);
@@ -211,6 +217,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       toggleVehicleAvailability,
       bookings,
       createBooking,
+      updateBookingStatus,
       deleteBooking,
       searchState,
       setSearchState,
