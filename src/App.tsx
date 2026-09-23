@@ -5,6 +5,8 @@ import { CustomerView } from './components/customer/CustomerView';
 import { AdminView } from './components/admin/AdminView';
 import { AuthModal } from './components/common/AuthModal';
 import { UserBookingsModal } from './components/customer/UserBookingsModal';
+import { InstallAppModal } from './components/common/InstallAppModal';
+import { MobileBottomNav } from './components/common/MobileBottomNav';
 import { Lock, Phone, MessageCircle, Headphones } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -25,7 +27,7 @@ export const App: React.FC = () => {
         /* PURE ADMIN SECTION: Dedicated Admin Portal only */
         <AdminView />
       ) : (
-        /* CUSTOMER SECTION: Customer Navbar, Booking Fleet, and Footer only */
+        /* CUSTOMER SECTION: Customer Navbar, Booking Fleet, Mobile Quick Nav, and Footer */
         <>
           <Navbar />
 
@@ -33,7 +35,8 @@ export const App: React.FC = () => {
             <CustomerView />
           </main>
 
-          <footer className="bg-white border-t border-slate-200 py-6 px-4 text-xs text-slate-500">
+          {/* Customer Footer */}
+          <footer className="bg-white border-t border-slate-200 py-6 px-4 text-xs text-slate-500 mb-14 sm:mb-0">
             <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
               <div className="space-y-0.5 text-center sm:text-left">
                 <p className="font-bold text-slate-700">© {new Date().getFullYear()} {settings.agency_name}. All rights reserved.</p>
@@ -75,11 +78,18 @@ export const App: React.FC = () => {
             </div>
           </footer>
 
+          {/* Mobile Bottom Navigation Bar (Phone Only) */}
+          <MobileBottomNav />
+
+          {/* 100% Free Mobile App Install Prompt Bar & Guide */}
+          <InstallAppModal />
+
+          {/* Customer Trips Modal */}
           <UserBookingsModal />
         </>
       )}
 
-      {/* Global Auth Modal (Opens on Customer or Admin Login triggers) */}
+      {/* Global Auth Modal */}
       <AuthModal />
 
     </div>
