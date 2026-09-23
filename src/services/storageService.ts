@@ -15,7 +15,12 @@ export const storageService = {
       return initialAgencySettings;
     }
     try {
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      return {
+        ...initialAgencySettings,
+        ...parsed,
+        helpline_number: parsed.helpline_number || initialAgencySettings.helpline_number || parsed.phone_primary
+      };
     } catch {
       return initialAgencySettings;
     }

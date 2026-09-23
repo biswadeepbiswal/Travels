@@ -11,7 +11,7 @@ import {
   MessageCircle, 
   Save, 
   X, 
-  LogOut,
+  LogOut, 
   Image as ImageIcon,
   ClipboardList,
   Settings,
@@ -20,7 +20,10 @@ import {
   ShieldCheck,
   Clock,
   Send,
-  Check
+  Check,
+  Headphones,
+  UserCheck,
+  Sparkles
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Vehicle, AgencySettings, Booking } from '../../types';
@@ -142,10 +145,7 @@ export const AdminView: React.FC = () => {
   };
 
   const handleConfirmAndSendWhatsApp = (booking: Booking) => {
-    // 1. Update status to confirmed in database/state
     updateBookingStatus(booking.id, 'confirmed');
-
-    // 2. Open WhatsApp to send official confirmation to user's registered phone
     const url = generateAdminBookingConfirmationWhatsAppUrl(booking, settings);
     window.open(url, '_blank');
   };
@@ -173,7 +173,7 @@ export const AdminView: React.FC = () => {
               <p className="text-xs text-slate-500">
                 {currentUser ? (
                   <span>
-                    Logged in: <strong className="text-slate-800">{currentUser.name}</strong> ({currentUser.phone})
+                    Active Admin: <strong className="text-slate-800">{currentUser.name}</strong> ({currentUser.phone})
                   </span>
                 ) : (
                   <span>{settings.agency_name}</span>
@@ -235,7 +235,7 @@ export const AdminView: React.FC = () => {
             }`}
           >
             <Settings className="w-4 h-4" />
-            <span>Agency Profile & Contact Settings</span>
+            <span>Admin Contact & Helpline Settings</span>
           </button>
         </div>
 
@@ -546,15 +546,48 @@ export const AdminView: React.FC = () => {
 
         {/* 3. PROFILE & CONTACT SETTINGS TAB */}
         {activeTab === 'profile' && (
-          <div className="max-w-2xl mx-auto space-y-4">
+          <div className="max-w-3xl mx-auto space-y-5">
+            
+            {/* Logged in Admin Identity Banner */}
+            {currentUser && (
+              <div className="bg-white p-5 rounded-2xl border border-blue-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gradient-to-r from-blue-50/50 to-white">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold">
+                    <UserCheck className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-blue-700 tracking-wider">Logged In Admin</span>
+                    <h3 className="text-base font-bold text-slate-900">{currentUser.name}</h3>
+                    <p className="text-xs text-slate-600 font-mono">Mobile: {currentUser.phone}</p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setProfileForm(prev => ({
+                      ...prev,
+                      phone_primary: currentUser.phone,
+                      whatsapp_number: currentUser.phone
+                    }));
+                  }}
+                  className="btn-secondary py-2 px-3 text-xs font-semibold text-blue-700 border-blue-300 hover:bg-blue-50 cursor-pointer flex items-center gap-1.5"
+                  title="Click to quickly set agency calling and WhatsApp number to your active mobile number"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Set My Number as Contact</span>
+                </button>
+              </div>
+            )}
+
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-5">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div>
                   <h2 className="text-lg font-bold text-slate-900 font-display">
-                    Agency Profile & Contact Numbers
+                    Agency Contact & 24/7 Helpline Settings
                   </h2>
                   <p className="text-xs text-slate-500">
-                    Customers will call and WhatsApp you on these numbers.
+                    Update your agency calling numbers, 24/7 helpline, and WhatsApp booking number.
                   </p>
                 </div>
 
@@ -567,6 +600,7 @@ export const AdminView: React.FC = () => {
 
               <form onSubmit={handleProfileSubmit} className="space-y-4">
                 
+                {/* Agency Name */}
                 <div className="space-y-1">
                   <label className="block text-xs font-bold text-slate-700">
                     Agency / Business Name *
@@ -580,11 +614,14 @@ export const AdminView: React.FC = () => {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Contact Numbers Row */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  
+                  {/* Primary / Admin Direct Call */}
                   <div className="space-y-1">
                     <label className="block text-xs font-bold text-slate-700 flex items-center gap-1">
                       <Phone className="w-3.5 h-3.5 text-blue-600" />
-                      Calling Phone Number *
+                      Admin / Calling Phone *
                     </label>
                     <input
                       type="text"
@@ -594,12 +631,31 @@ export const AdminView: React.FC = () => {
                       onChange={(e) => setProfileForm({ ...profileForm, phone_primary: e.target.value })}
                       className="input-clean text-xs font-semibold"
                     />
+                    <p className="text-[10px] text-slate-400">Primary phone for customer calls</p>
                   </div>
 
+                  {/* 24/7 Helpline */}
+                  <div className="space-y-1">
+                    <label className="block text-xs font-bold text-slate-700 flex items-center gap-1">
+                      <Headphones className="w-3.5 h-3.5 text-purple-600" />
+                      24/7 Helpline Number *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="+91 98610 99999"
+                      value={profileForm.helpline_number || profileForm.phone_primary}
+                      onChange={(e) => setProfileForm({ ...profileForm, helpline_number: e.target.value })}
+                      className="input-clean text-xs font-semibold"
+                    />
+                    <p className="text-[10px] text-slate-400">Support & emergency helpline</p>
+                  </div>
+
+                  {/* WhatsApp Number */}
                   <div className="space-y-1">
                     <label className="block text-xs font-bold text-slate-700 flex items-center gap-1">
                       <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
-                      WhatsApp Number (for leads) *
+                      WhatsApp Booking Number *
                     </label>
                     <input
                       type="text"
@@ -609,9 +665,12 @@ export const AdminView: React.FC = () => {
                       onChange={(e) => setProfileForm({ ...profileForm, whatsapp_number: e.target.value })}
                       className="input-clean text-xs font-semibold"
                     />
+                    <p className="text-[10px] text-slate-400">For booking alerts & leads</p>
                   </div>
+
                 </div>
 
+                {/* Address & City */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <label className="block text-xs font-bold text-slate-700 flex items-center gap-1">
@@ -646,7 +705,7 @@ export const AdminView: React.FC = () => {
                     className="btn-primary py-2.5 px-6 text-xs font-bold shadow-md cursor-pointer flex items-center gap-1.5"
                   >
                     <Save className="w-3.5 h-3.5" />
-                    <span>Save Contact Details</span>
+                    <span>Save Contact & Helpline Settings</span>
                   </button>
                 </div>
 

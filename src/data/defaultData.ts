@@ -3,6 +3,7 @@ import { Vehicle, Booking, AgencySettings } from '../types';
 export const initialAgencySettings: AgencySettings = {
   agency_name: "Mohanty Travels",
   phone_primary: "+91 94370 12345",
+  helpline_number: "+91 98610 99999",
   whatsapp_number: "+919437012345",
   address: "Master Canteen Square, Railway Station Road",
   city: "Bhubaneswar",

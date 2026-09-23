@@ -26,8 +26,9 @@ export interface Booking {
 
 export interface AgencySettings {
   agency_name: string;
-  phone_primary: string;
-  whatsapp_number: string;
+  phone_primary: string;       // Admin / Manager Contact Number
+  helpline_number: string;     // 24/7 Agency Helpline Number
+  whatsapp_number: string;     // WhatsApp Booking Number
   address: string;
   city: string;
   email?: string;

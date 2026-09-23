@@ -5,7 +5,7 @@ import { CustomerView } from './components/customer/CustomerView';
 import { AdminView } from './components/admin/AdminView';
 import { AuthModal } from './components/common/AuthModal';
 import { UserBookingsModal } from './components/customer/UserBookingsModal';
-import { Lock, Phone, MessageCircle } from 'lucide-react';
+import { Lock, Phone, MessageCircle, Headphones } from 'lucide-react';
 
 export const App: React.FC = () => {
   const { 
@@ -36,13 +36,25 @@ export const App: React.FC = () => {
               <p className="text-[11px] text-slate-400">{settings.address}, {settings.city}, Odisha</p>
             </div>
 
-            <div className="flex items-center gap-4 text-xs">
-              <a href={`tel:${settings.phone_primary.replace(/\s+/g, '')}`} className="text-blue-600 font-semibold hover:underline">
-                Call: {settings.phone_primary}
+            <div className="flex flex-wrap items-center justify-center gap-3 text-xs">
+              {settings.helpline_number && (
+                <>
+                  <a href={`tel:${settings.helpline_number.replace(/\s+/g, '')}`} className="text-purple-600 font-bold hover:underline flex items-center gap-1">
+                    <Headphones className="w-3.5 h-3.5" />
+                    <span>24/7 Helpline: {settings.helpline_number}</span>
+                  </a>
+                  <span>•</span>
+                </>
+              )}
+
+              <a href={`tel:${settings.phone_primary.replace(/\s+/g, '')}`} className="text-blue-600 font-semibold hover:underline flex items-center gap-1">
+                <Phone className="w-3.5 h-3.5" />
+                <span>Call: {settings.phone_primary}</span>
               </a>
               <span>•</span>
-              <a href={`https://wa.me/${settings.whatsapp_number.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="text-emerald-600 font-semibold hover:underline">
-                WhatsApp Us
+              <a href={`https://wa.me/${settings.whatsapp_number.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="text-emerald-600 font-semibold hover:underline flex items-center gap-1">
+                <MessageCircle className="w-3.5 h-3.5" />
+                <span>WhatsApp Us</span>
               </a>
               <span>•</span>
               <button

@@ -7,7 +7,8 @@ import {
   LogOut, 
   User, 
   Calendar,
-  ShieldCheck
+  ShieldCheck,
+  Headphones
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
@@ -40,14 +41,7 @@ export const Navbar: React.FC = () => {
         <div className="flex items-center justify-between h-16">
           
           {/* Brand Logo & Name */}
-          <div 
-            onClick={() => {
-              if (isAdmin) {
-                // If clicked while admin, can remain admin or navigate
-              }
-            }}
-            className="flex items-center gap-3 select-none cursor-pointer"
-          >
+          <div className="flex items-center gap-3 select-none">
             <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-sm">
               <Car className="w-5 h-5" />
             </div>
@@ -64,7 +58,7 @@ export const Navbar: React.FC = () => {
                 )}
               </div>
               <p className="text-[11px] text-slate-500 font-medium">
-                {settings.city}, Odisha • 24/7 Cab Service
+                {settings.city}, Odisha • 24/7 Helpline: <strong className="text-slate-700">{settings.helpline_number || settings.phone_primary}</strong>
               </p>
             </div>
           </div>
@@ -94,6 +88,18 @@ export const Navbar: React.FC = () => {
               /* 2. If Customer or Guest */
               <div className="flex items-center gap-2">
                 
+                {/* 24/7 Helpline Button (Desktop) */}
+                {settings.helpline_number && (
+                  <a
+                    href={`tel:${settings.helpline_number.replace(/\s+/g, '')}`}
+                    className="hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-50 text-purple-700 hover:bg-purple-100 text-xs font-bold border border-purple-200 transition-colors"
+                    title="24/7 Agency Emergency Helpline"
+                  >
+                    <Headphones className="w-3.5 h-3.5 text-purple-600" />
+                    <span>24/7 Helpline</span>
+                  </a>
+                )}
+
                 {/* WhatsApp button */}
                 <a
                   href={`https://wa.me/${settings.whatsapp_number.replace(/\D/g, '')}?text=${encodeURIComponent("Hello " + settings.agency_name + ", I want to book a cab.")}`}
@@ -111,7 +117,7 @@ export const Navbar: React.FC = () => {
                   className="btn-primary py-2 px-3 text-xs font-semibold"
                 >
                   <Phone className="w-4 h-4" />
-                  <span className="hidden md:inline">Call Us</span>
+                  <span className="hidden md:inline">Call Dispatch</span>
                 </a>
 
                 {/* Logged in Customer Actions */}
