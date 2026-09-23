@@ -1,0 +1,19 @@
+{
+  "name": "Mohanty & Mohanty Travels",
+  "short_name": "Mohanty Travels",
+  "description": "Book Cabs, SUVs, Innova Crysta, and Tempo Travellers for Local and Outstation trips in Odisha.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["travel", "transportation", "business"]
+}
