@@ -23,7 +23,9 @@ import {
   Check,
   Headphones,
   UserCheck,
-  Sparkles
+  Sparkles,
+  RefreshCw,
+  Wifi
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Vehicle, AgencySettings, Booking } from '../../types';
@@ -42,7 +44,9 @@ export const AdminView: React.FC = () => {
     settings, 
     updateSettings,
     currentUser,
-    logout
+    logout,
+    isSyncing,
+    refreshFromCloud
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<'cars' | 'bookings' | 'profile'>('cars');
@@ -167,13 +171,13 @@ export const AdminView: React.FC = () => {
                 </h1>
                 <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full border border-amber-200 flex items-center gap-1">
                   <ShieldCheck className="w-3 h-3 text-amber-700" />
-                  Multi-Admin Mode
+                  Admin Only
                 </span>
               </div>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-500 flex items-center gap-2">
                 {currentUser ? (
                   <span>
-                    Active Admin: <strong className="text-slate-800">{currentUser.name}</strong> ({currentUser.phone})
+                    Active: <strong className="text-slate-800">{currentUser.name}</strong> ({currentUser.phone})
                   </span>
                 ) : (
                   <span>{settings.agency_name}</span>
@@ -182,36 +186,48 @@ export const AdminView: React.FC = () => {
             </div>
           </div>
 
-          <button
-            onClick={logout}
-            className="btn-secondary py-2 px-3.5 text-xs font-bold text-slate-700 hover:text-red-600 cursor-pointer flex items-center gap-1.5"
-            title="Logout from Admin Dashboard"
-          >
-            <LogOut className="w-4 h-4" />
-            <span>Logout / Customer View</span>
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Live Cloud Sync Button */}
+            <button
+              onClick={() => refreshFromCloud()}
+              className="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
+              title="Refresh and sync bookings across all customer phones"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 text-blue-600 ${isSyncing ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">Sync Live</span>
+            </button>
+
+            <button
+              onClick={logout}
+              className="btn-secondary py-2 px-3 sm:px-3.5 text-xs font-bold text-slate-700 hover:text-red-600 cursor-pointer flex items-center gap-1.5"
+              title="Logout from Admin Dashboard"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Logout</span>
+            </button>
+          </div>
         </div>
       </header>
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 space-y-6">
         
         {/* Admin Tabs */}
-        <div className="flex items-center gap-2 bg-white p-1.5 rounded-2xl border border-slate-200 shadow-sm overflow-x-auto">
+        <div className="flex items-center gap-2 bg-white p-1.5 rounded-2xl border border-slate-200 shadow-sm overflow-x-auto no-scrollbar">
           <button
             onClick={() => setActiveTab('cars')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-colors cursor-pointer whitespace-nowrap ${
               activeTab === 'cars' 
                 ? 'bg-blue-600 text-white shadow-sm' 
                 : 'text-slate-600 hover:bg-slate-100'
             }`}
           >
             <Car className="w-4 h-4" />
-            <span>Manage Cars & Availability ({vehicles.length})</span>
+            <span>Manage Cars ({vehicles.length})</span>
           </button>
 
           <button
             onClick={() => setActiveTab('bookings')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-colors cursor-pointer relative ${
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-colors cursor-pointer relative whitespace-nowrap ${
               activeTab === 'bookings' 
                 ? 'bg-blue-600 text-white shadow-sm' 
                 : 'text-slate-600 hover:bg-slate-100'
@@ -220,22 +236,22 @@ export const AdminView: React.FC = () => {
             <ClipboardList className="w-4 h-4" />
             <span>Customer Bookings ({bookings.length})</span>
             {pendingBookings.length > 0 && (
-              <span className="bg-amber-400 text-slate-950 font-black text-[10px] px-2 py-0.2 rounded-full">
-                {pendingBookings.length} Pending
+              <span className="bg-amber-400 text-slate-950 font-black text-[10px] px-2 py-0.2 rounded-full animate-pulse">
+                {pendingBookings.length} New
               </span>
             )}
           </button>
 
           <button
             onClick={() => setActiveTab('profile')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-colors cursor-pointer whitespace-nowrap ${
               activeTab === 'profile' 
                 ? 'bg-blue-600 text-white shadow-sm' 
                 : 'text-slate-600 hover:bg-slate-100'
             }`}
           >
             <Settings className="w-4 h-4" />
-            <span>Admin Contact & Helpline Settings</span>
+            <span>Contact & Helpline Settings</span>
           </button>
         </div>
 
@@ -254,7 +270,7 @@ export const AdminView: React.FC = () => {
 
               <button
                 onClick={handleOpenAdd}
-                className="btn-primary py-2.5 px-4 text-xs font-bold shadow-md cursor-pointer flex items-center gap-1.5"
+                className="btn-primary py-2.5 px-4 text-xs font-bold shadow-md cursor-pointer flex items-center gap-1.5 self-start sm:self-auto"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add New Car</span>
@@ -360,16 +376,21 @@ export const AdminView: React.FC = () => {
             {/* Header & Filter Tabs */}
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <h2 className="text-lg font-bold text-slate-900 font-display">
-                  Customer Booking Requests ({bookings.length})
-                </h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-bold text-slate-900 font-display">
+                    Incoming Customer Bookings ({bookings.length})
+                  </h2>
+                  <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                    <Wifi className="w-3 h-3" /> Live Synced
+                  </span>
+                </div>
                 <p className="text-xs text-slate-500">
-                  Review pending bookings and click "Confirm & Send WhatsApp" to notify the customer on their mobile.
+                  Bookings from all customer phones sync here automatically in real time.
                 </p>
               </div>
 
               {/* Status Filters */}
-              <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl">
+              <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl overflow-x-auto">
                 <button
                   onClick={() => setBookingFilter('all')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
@@ -537,7 +558,7 @@ export const AdminView: React.FC = () => {
               ) : (
                 <div className="p-10 text-center bg-white rounded-2xl border border-slate-200 text-slate-500 text-xs space-y-1">
                   <p className="font-bold text-slate-700">No {bookingFilter !== 'all' ? bookingFilter : ''} bookings found</p>
-                  <p className="text-slate-400">All customer booking requests will appear here in real-time.</p>
+                  <p className="text-slate-400">All customer booking requests from all devices will appear here automatically.</p>
                 </div>
               )}
             </div>

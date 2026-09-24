@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { Vehicle, Booking, AgencySettings, UserSession } from '../types';
-import { storageService } from '../services/storageService';
+import { cloudStorage, AppDatabaseState } from '../services/cloudStorage';
+import { initialVehicles, initialBookings, initialAgencySettings } from '../data/defaultData';
 
 export interface SearchState {
   pickup: string;
@@ -30,7 +31,7 @@ interface AppContextType {
   // Auth & Session
   currentUser: UserSession | null;
   loginCustomer: (name: string, phone: string) => void;
-  sendAdminOtp: (name: string, phone: string) => string; // returns generated OTP
+  sendAdminOtp: (name: string, phone: string) => string;
   verifyAdminOtp: (otp: string) => boolean;
   logout: () => void;
 
@@ -49,7 +50,10 @@ interface AppContextType {
   openBookingModal: (v: Vehicle) => void;
   closeBookingModal: () => void;
 
-  resetToDemo: () => void;
+  // Cloud Sync state
+  isSyncing: boolean;
+  lastSyncedAt: Date | null;
+  refreshFromCloud: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -61,13 +65,17 @@ const getDefaultDate = () => {
 };
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [settings, setSettings] = useState<AgencySettings>(storageService.getSettings);
-  const [vehicles, setVehicles] = useState<Vehicle[]>(storageService.getVehicles);
-  const [bookings, setBookings] = useState<Booking[]>(storageService.getBookings);
+  const initialLocal = cloudStorage.getLocalState();
+  
+  const [settings, setSettings] = useState<AgencySettings>(initialLocal.settings);
+  const [vehicles, setVehicles] = useState<Vehicle[]>(initialLocal.vehicles);
+  const [bookings, setBookings] = useState<Booking[]>(initialLocal.bookings);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(new Date());
 
   // User session state
   const [currentUser, setCurrentUser] = useState<UserSession | null>(() => {
-    const raw = localStorage.getItem('mohanty_user_session_v5');
+    const raw = localStorage.getItem('mohanty_user_session_v6');
     if (raw) {
       try { return JSON.parse(raw); } catch { return null; }
     }
@@ -78,7 +86,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
   const [authModalTab, setAuthModalTab] = useState<'customer' | 'admin'>('customer');
   const [showUserBookingsModal, setShowUserBookingsModal] = useState<boolean>(false);
-
   const [bookingModalVehicle, setBookingModalVehicle] = useState<Vehicle | null>(null);
 
   const [searchState, setSearchState] = useState<SearchState>({
@@ -88,31 +95,94 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     pickupTime: '08:00 AM'
   });
 
+  const stateRef = useRef<AppDatabaseState>({
+    vehicles,
+    bookings,
+    settings,
+    last_updated: new Date().toISOString()
+  });
+
   useEffect(() => {
-    storageService.saveVehicles(vehicles);
-  }, [vehicles]);
+    stateRef.current = {
+      vehicles,
+      bookings,
+      settings,
+      last_updated: new Date().toISOString()
+    };
+  }, [vehicles, bookings, settings]);
+
+  // 1. Initial Cloud Sync on App Launch
+  const refreshFromCloud = async () => {
+    setIsSyncing(true);
+    try {
+      const cloudData = await cloudStorage.pullFromCloud();
+      if (cloudData) {
+        setVehicles(cloudData.vehicles);
+        setBookings(cloudData.bookings);
+        setSettings(cloudData.settings);
+        setLastSyncedAt(new Date());
+      }
+    } catch (err) {
+      console.warn('Cloud sync error:', err);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  useEffect(() => {
+    refreshFromCloud();
+
+    // 2. Real-time background polling every 5 seconds so Admin on Phone B receives new bookings from Phone A
+    const interval = setInterval(() => {
+      refreshFromCloud();
+    }, 5000);
+
+    // 3. Multi-tab broadcast channel listener
+    const unsubscribe = cloudStorage.onUpdate((newState) => {
+      setVehicles(newState.vehicles);
+      setBookings(newState.bookings);
+      setSettings(newState.settings);
+    });
+
+    return () => {
+      clearInterval(interval);
+      unsubscribe();
+    };
+  }, []);
+
+  // Sync helper that updates state and pushes to cloud
+  const pushStateUpdate = (newVehicles?: Vehicle[], newBookings?: Booking[], newSettings?: AgencySettings) => {
+    const updatedState: AppDatabaseState = {
+      vehicles: newVehicles ?? stateRef.current.vehicles,
+      bookings: newBookings ?? stateRef.current.bookings,
+      settings: newSettings ?? stateRef.current.settings,
+      last_updated: new Date().toISOString()
+    };
+
+    if (newVehicles) setVehicles(newVehicles);
+    if (newBookings) setBookings(newBookings);
+    if (newSettings) setSettings(newSettings);
+
+    cloudStorage.pushToCloud(updatedState);
+  };
 
   const updateSettings = (s: AgencySettings) => {
-    setSettings(s);
-    storageService.saveSettings(s);
+    pushStateUpdate(undefined, undefined, s);
   };
 
   const addVehicle = (v: Vehicle) => {
     const updated = [v, ...vehicles];
-    setVehicles(updated);
-    storageService.saveVehicles(updated);
+    pushStateUpdate(updated);
   };
 
   const updateVehicle = (v: Vehicle) => {
     const updated = vehicles.map(item => item.id === v.id ? v : item);
-    setVehicles(updated);
-    storageService.saveVehicles(updated);
+    pushStateUpdate(updated);
   };
 
   const deleteVehicle = (id: string) => {
     const updated = vehicles.filter(v => v.id !== id);
-    setVehicles(updated);
-    storageService.saveVehicles(updated);
+    pushStateUpdate(updated);
   };
 
   const toggleVehicleAvailability = (id: string) => {
@@ -122,24 +192,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       return v;
     });
-    setVehicles(updated);
-    storageService.saveVehicles(updated);
+    pushStateUpdate(updated);
   };
 
-  const createBooking = (b: Omit<Booking, 'id' | 'booking_code' | 'created_at' | 'status'>) => {
-    const created = storageService.addBooking(b);
-    setBookings(storageService.getBookings());
-    return created;
+  const createBooking = (b: Omit<Booking, 'id' | 'booking_code' | 'created_at' | 'status'>): Booking => {
+    const randomCode = `BK-${Math.floor(1000 + Math.random() * 9000)}`;
+    const newBooking: Booking = {
+      ...b,
+      id: `bk-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      booking_code: randomCode,
+      status: 'pending',
+      created_at: new Date().toISOString()
+    };
+
+    const updated = [newBooking, ...bookings];
+    pushStateUpdate(undefined, updated);
+    return newBooking;
   };
 
   const updateBookingStatus = (id: string, status: Booking['status']) => {
-    const updated = storageService.updateBookingStatus(id, status);
-    setBookings(updated);
+    const updated = bookings.map(b => b.id === id ? { ...b, status } : b);
+    pushStateUpdate(undefined, updated);
   };
 
   const deleteBooking = (id: string) => {
-    const updated = storageService.deleteBooking(id);
-    setBookings(updated);
+    const updated = bookings.filter(b => b.id !== id);
+    pushStateUpdate(undefined, updated);
   };
 
   // Auth Operations
@@ -151,12 +229,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       logged_in_at: new Date().toISOString()
     };
     setCurrentUser(session);
-    localStorage.setItem('mohanty_user_session_v5', JSON.stringify(session));
+    localStorage.setItem('mohanty_user_session_v6', JSON.stringify(session));
     setShowAuthModal(false);
   };
 
   const sendAdminOtp = (name: string, phone: string): string => {
-    // Generate random 4-digit OTP
     const generatedOtp = String(Math.floor(1000 + Math.random() * 9000));
     setPendingAdminData({
       name: name.trim(),
@@ -168,7 +245,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const verifyAdminOtp = (inputOtp: string): boolean => {
     if (!pendingAdminData) return false;
-    // Accepts generated OTP or universal master OTP '1234'
     if (inputOtp.trim() === pendingAdminData.otp || inputOtp.trim() === '1234') {
       const session: UserSession = {
         role: 'admin',
@@ -177,9 +253,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         logged_in_at: new Date().toISOString()
       };
       setCurrentUser(session);
-      localStorage.setItem('mohanty_user_session_v5', JSON.stringify(session));
+      localStorage.setItem('mohanty_user_session_v6', JSON.stringify(session));
       setPendingAdminData(null);
       setShowAuthModal(false);
+      // Immediately pull fresh cloud bookings on admin login
+      refreshFromCloud();
       return true;
     }
     return false;
@@ -187,7 +265,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const logout = () => {
     setCurrentUser(null);
-    localStorage.removeItem('mohanty_user_session_v5');
+    localStorage.removeItem('mohanty_user_session_v6');
     setPendingAdminData(null);
   };
 
@@ -197,13 +275,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const closeBookingModal = () => {
     setBookingModalVehicle(null);
-  };
-
-  const resetToDemo = () => {
-    storageService.resetDefaults();
-    setVehicles(storageService.getVehicles());
-    setBookings(storageService.getBookings());
-    setSettings(storageService.getSettings());
   };
 
   return (
@@ -237,7 +308,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       bookingModalVehicle,
       openBookingModal,
       closeBookingModal,
-      resetToDemo
+      isSyncing,
+      lastSyncedAt,
+      refreshFromCloud
     }}>
       {children}
     </AppContext.Provider>
