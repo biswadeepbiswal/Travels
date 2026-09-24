@@ -13,10 +13,14 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
+import { matchPhones } from '../../data/defaultData';
+
 export const Navbar: React.FC = () => {
   const { 
     settings, 
     currentUser,
+    admins,
+    loginAdminDirectly,
     logout,
     setShowAuthModal,
     setAuthModalTab,
@@ -25,6 +29,9 @@ export const Navbar: React.FC = () => {
 
   const isAdmin = currentUser?.role === 'admin';
   const isCustomer = currentUser?.role === 'customer';
+  const matchedAdmin = isCustomer && currentUser?.phone
+    ? admins.find(a => matchPhones(a.phone, currentUser.phone) && a.is_active)
+    : null;
 
   const handleOpenAdminLogin = () => {
     setAuthModalTab('admin');
@@ -122,7 +129,19 @@ export const Navbar: React.FC = () => {
 
                 {/* Customer Logged In Controls */}
                 {isCustomer ? (
-                  <>
+                  <div className="flex items-center gap-1.5">
+                    {/* If this customer is also an admin, show 1-click switch button! */}
+                    {matchedAdmin && (
+                      <button
+                        onClick={() => loginAdminDirectly(matchedAdmin)}
+                        className="btn-primary py-1.5 px-2.5 sm:py-2 sm:px-3 text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white flex items-center gap-1 cursor-pointer shadow-sm"
+                        title="Registered Admin! Click to open Admin Panel"
+                      >
+                        <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+                        <span className="hidden xs:inline">Admin Panel</span>
+                      </button>
+                    )}
+
                     <button
                       onClick={() => setShowUserBookingsModal(true)}
                       className="hidden xs:flex btn-secondary py-1.5 px-2 sm:py-2 sm:px-3 text-xs font-semibold text-blue-700 hover:bg-blue-50 border-blue-200 cursor-pointer items-center gap-1"
@@ -132,16 +151,24 @@ export const Navbar: React.FC = () => {
                     </button>
 
                     <button
+                      onClick={handleOpenAdminLogin}
+                      className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded-lg cursor-pointer transition-colors"
+                      title="Admin Login"
+                    >
+                      <Lock className="w-3.5 h-3.5" />
+                    </button>
+
+                    <button
                       onClick={logout}
                       className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-slate-100 cursor-pointer"
                       title="Sign Out"
                     >
                       <LogOut className="w-4 h-4" />
                     </button>
-                  </>
+                  </div>
                 ) : (
                   /* Guest User Controls */
-                  <>
+                  <div className="flex items-center gap-1.5">
                     <button
                       onClick={handleOpenCustomerLogin}
                       className="btn-secondary py-1.5 px-2.5 sm:py-2 sm:px-3 text-xs font-semibold cursor-pointer flex items-center gap-1"
@@ -157,7 +184,7 @@ export const Navbar: React.FC = () => {
                     >
                       <Lock className="w-3.5 h-3.5" />
                     </button>
-                  </>
+                  </div>
                 )}
 
               </div>

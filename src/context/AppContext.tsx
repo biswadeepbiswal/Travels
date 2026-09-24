@@ -49,6 +49,7 @@ interface AppContextType {
   // Auth
   currentUser: UserSession | null;
   loginCustomer: (name: string, phone: string) => void;
+  loginAdminDirectly: (admin: Admin) => void;
   sendAdminOtp: (name: string, phone: string) => string;
   verifyAdminOtp: (otp: string) => boolean;
   logout: () => void;
@@ -330,6 +331,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setShowAuthModal(false);
   };
 
+  const loginAdminDirectly = (admin: Admin) => {
+    const session: UserSession = {
+      role: 'admin',
+      name: admin.name,
+      phone: admin.phone,
+      logged_in_at: new Date().toISOString(),
+      admin_id: admin.id,
+      admin_role: admin.role
+    };
+    setCurrentUser(session);
+    localStorage.setItem('mohanty_user_session_v7', JSON.stringify(session));
+    setShowAuthModal(false);
+  };
+
   const sendAdminOtp = (name: string, phone: string): string => {
     // Check if this phone matches any active admin (handles full or 10-digit formats)
     const matchedAdmin = stateRef.current.admins.find(a => matchPhones(a.phone, phone) && a.is_active);
@@ -378,7 +393,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       admins, addAdmin, updateAdmin, removeAdmin, toggleAdminActive, updateAdminPermissions,
       assignUserToAdmin, unassignUserFromAdmin, getAdminsForUser, getCurrentAdmin, registerMainAdmin,
       searchState, setSearchState,
-      currentUser, loginCustomer, sendAdminOtp, verifyAdminOtp, logout,
+      currentUser, loginCustomer, loginAdminDirectly, sendAdminOtp, verifyAdminOtp, logout,
       pendingAdminData, setPendingAdminData,
       showAuthModal, setShowAuthModal,
       authModalTab, setAuthModalTab,

@@ -142,13 +142,28 @@ export const cloudStorage = {
   },
 
   onUpdate(callback: (state: AppDatabaseState) => void): () => void {
-    if (!broadcast) return () => {};
     const listener = (event: MessageEvent) => {
       if (event.data?.type === 'DATA_UPDATED' && event.data?.state) {
         callback(event.data.state);
       }
     };
-    broadcast.addEventListener('message', listener);
-    return () => broadcast.removeEventListener('message', listener);
+    if (broadcast) {
+      broadcast.addEventListener('message', listener);
+    }
+
+    const storageListener = (e: StorageEvent) => {
+      if (e.key === LOCAL_STORAGE_KEY && e.newValue) {
+        try {
+          const fresh = this.getLocalState();
+          callback(fresh);
+        } catch {}
+      }
+    };
+    window.addEventListener('storage', storageListener);
+
+    return () => {
+      if (broadcast) broadcast.removeEventListener('message', listener);
+      window.removeEventListener('storage', storageListener);
+    };
   }
 };
