@@ -1,5 +1,5 @@
-﻿import { Vehicle, Booking, AgencySettings, Admin } from '../types';
-import { initialVehicles, initialBookings, initialAgencySettings, initialAdmins } from '../data/defaultData';
+import { Vehicle, Booking, AgencySettings, Admin } from '../types';
+import { initialVehicles, initialBookings, initialAgencySettings, initialAdmins, matchPhones } from '../data/defaultData';
 import { supabase, isSupabaseConfigured } from './supabase';
 
 const LOCAL_STORAGE_KEY = 'mohanty_travels_v7_data';
@@ -34,11 +34,18 @@ export const cloudStorage = {
     }
     try {
       const parsed = JSON.parse(raw);
+      const existingAdmins: Admin[] = Array.isArray(parsed.admins) ? parsed.admins : [];
+      const mergedAdmins = [...existingAdmins];
+      for (const init of initialAdmins) {
+        if (!mergedAdmins.some(a => matchPhones(a.phone, init.phone))) {
+          mergedAdmins.push(init);
+        }
+      }
       return {
         vehicles: Array.isArray(parsed.vehicles) && parsed.vehicles.length > 0 ? parsed.vehicles : initialVehicles,
         bookings: Array.isArray(parsed.bookings) ? parsed.bookings : initialBookings,
         settings: { ...initialAgencySettings, ...(parsed.settings || {}) },
-        admins: Array.isArray(parsed.admins) && parsed.admins.length > 0 ? parsed.admins : initialAdmins,
+        admins: mergedAdmins.length > 0 ? mergedAdmins : initialAdmins,
         last_updated: parsed.last_updated || new Date().toISOString()
       };
     } catch {

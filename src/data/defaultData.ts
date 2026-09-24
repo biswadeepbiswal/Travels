@@ -1,4 +1,4 @@
-﻿import { Vehicle, Booking, AgencySettings, Admin, BookingStatus } from '../types';
+import { Vehicle, Booking, AgencySettings, Admin, BookingStatus } from '../types';
 
 export const initialAgencySettings: AgencySettings = {
   agency_name: "Mohanty Travels",
@@ -10,7 +10,18 @@ export const initialAgencySettings: AgencySettings = {
   email: "contact@mohantytravels.com"
 };
 
-export const MAIN_ADMIN_PHONE = (import.meta.env.VITE_ADMIN_PHONE as string || '9437012345').replace(/\D/g, '');
+export const matchPhones = (p1?: string, p2?: string): boolean => {
+  if (!p1 || !p2) return false;
+  const d1 = p1.replace(/\D/g, '');
+  const d2 = p2.replace(/\D/g, '');
+  if (!d1 || !d2) return false;
+  if (d1 === d2) return true;
+  const last10_1 = d1.length >= 10 ? d1.slice(-10) : d1;
+  const last10_2 = d2.length >= 10 ? d2.slice(-10) : d2;
+  return last10_1 === last10_2;
+};
+
+export const MAIN_ADMIN_PHONE = (import.meta.env.VITE_ADMIN_PHONE as string || '8658839856').replace(/\D/g, '');
 
 export const DEFAULT_MAIN_ADMIN_PERMISSIONS = {
   can_view_bookings: true,
@@ -37,8 +48,20 @@ export const DEFAULT_SUB_ADMIN_PERMISSIONS = {
 export const initialAdmins: Admin[] = [
   {
     id: 'admin-main-001',
-    name: 'Main Admin',
-    phone: MAIN_ADMIN_PHONE,
+    name: 'Biswadeep (Main Admin)',
+    phone: '8658839856',
+    role: 'main_admin',
+    permissions: DEFAULT_MAIN_ADMIN_PERMISSIONS,
+    contact_phone: '+91 86588 39856',
+    contact_whatsapp: '+918658839856',
+    is_active: true,
+    created_at: new Date().toISOString(),
+    assigned_user_phones: []
+  },
+  {
+    id: 'admin-main-002',
+    name: 'Mohanty Travels Admin',
+    phone: '9437012345',
     role: 'main_admin',
     permissions: DEFAULT_MAIN_ADMIN_PERMISSIONS,
     contact_phone: '+91 94370 12345',

@@ -1,7 +1,7 @@
-﻿import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { Vehicle, Booking, BookingStatus, BookingStatusHistory, AgencySettings, UserSession, Admin, AdminRole, AdminPermissions } from '../types';
 import { cloudStorage, AppDatabaseState } from '../services/cloudStorage';
-import { initialVehicles, initialBookings, initialAgencySettings, initialAdmins, MAIN_ADMIN_PHONE, DEFAULT_MAIN_ADMIN_PERMISSIONS, DEFAULT_SUB_ADMIN_PERMISSIONS } from '../data/defaultData';
+import { initialVehicles, initialBookings, initialAgencySettings, initialAdmins, MAIN_ADMIN_PHONE, DEFAULT_MAIN_ADMIN_PERMISSIONS, DEFAULT_SUB_ADMIN_PERMISSIONS, matchPhones } from '../data/defaultData';
 
 export interface SearchState {
   pickup: string;
@@ -40,6 +40,7 @@ interface AppContextType {
   unassignUserFromAdmin: (adminId: string, userPhone: string) => void;
   getAdminsForUser: (userPhone: string) => Admin[];
   getCurrentAdmin: () => Admin | null;
+  registerMainAdmin: (name: string, phone: string) => string;
 
   // Search
   searchState: SearchState;
@@ -234,8 +235,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return stateRef.current.admins.find(a => a.id === currentUser.admin_id) || null;
     }
     // Fallback: find by phone
-    const cleanPhone = currentUser.phone.replace(/\D/g, '');
-    return stateRef.current.admins.find(a => a.phone.replace(/\D/g, '') === cleanPhone) || null;
+    return stateRef.current.admins.find(a => matchPhones(a.phone, currentUser.phone)) || null;
   };
 
   const addAdmin = (a: Omit<Admin, 'id' | 'created_at'>) => {
@@ -268,27 +268,58 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     pushStateUpdate(undefined, undefined, undefined, stateRef.current.admins.map(a => {
       if (a.id !== adminId) return a;
       const existing = a.assigned_user_phones || [];
-      if (existing.includes(clean)) return a;
+      if (existing.some(p => matchPhones(p, clean))) return a;
       return { ...a, assigned_user_phones: [...existing, clean] };
     }));
   };
 
   const unassignUserFromAdmin = (adminId: string, userPhone: string) => {
-    const clean = userPhone.replace(/\D/g, '');
     pushStateUpdate(undefined, undefined, undefined, stateRef.current.admins.map(a => {
       if (a.id !== adminId) return a;
-      return { ...a, assigned_user_phones: (a.assigned_user_phones || []).filter(p => p !== clean) };
+      return { ...a, assigned_user_phones: (a.assigned_user_phones || []).filter(p => !matchPhones(p, userPhone)) };
     }));
   };
 
   const getAdminsForUser = (userPhone: string): Admin[] => {
-    const clean = userPhone.replace(/\D/g, '');
     return stateRef.current.admins.filter(a =>
       a.is_active && (
         a.role === 'main_admin' ||
-        (a.assigned_user_phones || []).some(p => p === clean || p.includes(clean) || clean.includes(p))
+        (a.assigned_user_phones || []).some(p => matchPhones(p, userPhone))
       )
     );
+  };
+
+  const registerMainAdmin = (name: string, phone: string): string => {
+    const clean = phone.replace(/\D/g, '');
+    const standardPhone = clean.length >= 10 ? clean.slice(-10) : clean;
+    // Check if already registered
+    const existing = stateRef.current.admins.find(a => matchPhones(a.phone, standardPhone));
+    if (existing) {
+      const updated = stateRef.current.admins.map(a =>
+        a.id === existing.id ? { ...a, role: 'main_admin' as const, is_active: true, permissions: DEFAULT_MAIN_ADMIN_PERMISSIONS } : a
+      );
+      pushStateUpdate(undefined, undefined, undefined, updated);
+      const generatedOtp = String(Math.floor(1000 + Math.random() * 9000));
+      setPendingAdminData({ name: existing.name, phone: existing.phone, otp: generatedOtp });
+      return generatedOtp;
+    }
+    const newAdmin: Admin = {
+      id: `admin-main-${Date.now()}`,
+      name: name.trim() || 'Main Admin',
+      phone: standardPhone,
+      role: 'main_admin',
+      permissions: DEFAULT_MAIN_ADMIN_PERMISSIONS,
+      contact_phone: phone.trim(),
+      contact_whatsapp: phone.trim().replace(/\D/g, ''),
+      is_active: true,
+      created_at: new Date().toISOString(),
+      assigned_user_phones: []
+    };
+    const updated = [...stateRef.current.admins, newAdmin];
+    pushStateUpdate(undefined, undefined, undefined, updated);
+    const generatedOtp = String(Math.floor(1000 + Math.random() * 9000));
+    setPendingAdminData({ name: newAdmin.name, phone: newAdmin.phone, otp: generatedOtp });
+    return generatedOtp;
   };
 
   // ─── AUTH ────────────────────────────────────────────────────────────────
@@ -300,9 +331,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const sendAdminOtp = (name: string, phone: string): string => {
-    const cleanPhone = phone.trim().replace(/\D/g, '');
-    // Check if this phone matches any active admin
-    const matchedAdmin = stateRef.current.admins.find(a => a.phone.replace(/\D/g, '') === cleanPhone && a.is_active);
+    // Check if this phone matches any active admin (handles full or 10-digit formats)
+    const matchedAdmin = stateRef.current.admins.find(a => matchPhones(a.phone, phone) && a.is_active);
     if (!matchedAdmin) return 'UNAUTHORIZED';
     const generatedOtp = String(Math.floor(1000 + Math.random() * 9000));
     setPendingAdminData({ name: name.trim() || matchedAdmin.name, phone: phone.trim(), otp: generatedOtp });
@@ -312,15 +342,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const verifyAdminOtp = (inputOtp: string): boolean => {
     if (!pendingAdminData) return false;
     if (inputOtp.trim() === pendingAdminData.otp) {
-      const cleanPhone = pendingAdminData.phone.replace(/\D/g, '');
-      const matchedAdmin = stateRef.current.admins.find(a => a.phone.replace(/\D/g, '') === cleanPhone && a.is_active);
+      const matchedAdmin = stateRef.current.admins.find(a => matchPhones(a.phone, pendingAdminData.phone) && a.is_active);
       const session: UserSession = {
         role: 'admin',
         name: matchedAdmin?.name || pendingAdminData.name,
         phone: pendingAdminData.phone,
         logged_in_at: new Date().toISOString(),
         admin_id: matchedAdmin?.id,
-        admin_role: matchedAdmin?.role || 'sub_admin'
+        admin_role: matchedAdmin?.role || 'main_admin'
       };
       setCurrentUser(session);
       localStorage.setItem('mohanty_user_session_v7', JSON.stringify(session));
@@ -347,7 +376,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       vehicles, addVehicle, updateVehicle, deleteVehicle, toggleVehicleAvailability,
       bookings, createBooking, updateBookingStatus, deleteBooking, addAdminNote,
       admins, addAdmin, updateAdmin, removeAdmin, toggleAdminActive, updateAdminPermissions,
-      assignUserToAdmin, unassignUserFromAdmin, getAdminsForUser, getCurrentAdmin,
+      assignUserToAdmin, unassignUserFromAdmin, getAdminsForUser, getCurrentAdmin, registerMainAdmin,
       searchState, setSearchState,
       currentUser, loginCustomer, sendAdminOtp, verifyAdminOtp, logout,
       pendingAdminData, setPendingAdminData,

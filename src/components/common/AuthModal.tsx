@@ -1,5 +1,5 @@
-﻿import React, { useState } from 'react';
-import { X, Phone, ShieldCheck, LogIn, User, KeyRound, Sparkles, CheckCircle2, Eye, EyeOff } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Phone, ShieldCheck, LogIn, User, KeyRound, Sparkles, CheckCircle2, Eye, EyeOff, Crown, ShieldAlert } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
 export const AuthModal: React.FC = () => {
@@ -7,7 +7,7 @@ export const AuthModal: React.FC = () => {
     showAuthModal, setShowAuthModal,
     authModalTab, setAuthModalTab,
     loginCustomer,
-    sendAdminOtp, verifyAdminOtp,
+    sendAdminOtp, verifyAdminOtp, registerMainAdmin,
     pendingAdminData, setPendingAdminData,
     currentUser
   } = useApp();
@@ -18,6 +18,8 @@ export const AuthModal: React.FC = () => {
 
   const [adminName, setAdminName] = useState('');
   const [adminPhone, setAdminPhone] = useState('');
+  const [newMainAdminName, setNewMainAdminName] = useState('');
+  const [showRegisterMainAdmin, setShowRegisterMainAdmin] = useState(false);
   const [otpInput, setOtpInput] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [displayedOtp, setDisplayedOtp] = useState<string | null>(null);
@@ -38,11 +40,24 @@ export const AuthModal: React.FC = () => {
     setErrorMessage('');
     const result = sendAdminOtp(adminName, adminPhone);
     if (result === 'UNAUTHORIZED') {
-      setErrorMessage('This phone number is not registered as an admin. Contact the main admin to be added.');
+      setErrorMessage('This phone number is not registered as an admin.');
+      setShowRegisterMainAdmin(true);
       return;
     }
     setDisplayedOtp(result);
     setOtpSent(true);
+  };
+
+  const handleRegisterAsMainAdmin = () => {
+    if (!adminPhone || adminPhone.replace(/\D/g, '').length < 10) {
+      setErrorMessage('Please enter a valid 10-digit phone number above first.');
+      return;
+    }
+    setErrorMessage('');
+    const otp = registerMainAdmin(newMainAdminName || 'Main Admin', adminPhone);
+    setDisplayedOtp(otp);
+    setOtpSent(true);
+    setShowRegisterMainAdmin(false);
   };
 
   const handleVerifyOtp = (e: React.FormEvent) => {
@@ -119,19 +134,73 @@ export const AuthModal: React.FC = () => {
                   <h3 className="text-base font-bold text-slate-800">Admin Access</h3>
                   <p className="text-xs text-slate-500">Restricted to registered admin phones only</p>
                 </div>
-                {errorMessage && <div className="p-3 bg-red-50 text-red-700 text-xs rounded-xl border border-red-200">{errorMessage}</div>}
+                {errorMessage && (
+                  <div className="p-3 bg-red-50 text-red-700 text-xs rounded-xl border border-red-200 flex items-start gap-2">
+                    <ShieldAlert className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                    <span>{errorMessage}</span>
+                  </div>
+                )}
                 <div className="space-y-1">
                   <label className="block text-xs font-bold text-slate-700">Admin Phone Number *</label>
                   <div className="relative">
                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <input type="tel" required placeholder="Registered admin phone" value={adminPhone} onChange={e => setAdminPhone(e.target.value)} className="w-full border border-slate-200 rounded-xl px-3 py-2.5 pl-9 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-slate-400" />
+                    <input
+                      type="tel"
+                      required
+                      placeholder="Registered admin phone"
+                      value={adminPhone}
+                      onChange={e => setAdminPhone(e.target.value)}
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2.5 pl-9 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    />
                   </div>
                 </div>
+
+                <div className="flex items-center justify-between text-[11px] px-1">
+                  <span className="text-slate-400">Need Main Admin access?</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowRegisterMainAdmin(!showRegisterMainAdmin)}
+                    className="text-amber-700 font-bold hover:underline cursor-pointer flex items-center gap-1"
+                  >
+                    <Crown className="w-3.5 h-3.5 text-amber-600" />
+                    {showRegisterMainAdmin ? 'Hide setup' : 'Add this phone as Main Admin'}
+                  </button>
+                </div>
+
+                {showRegisterMainAdmin && (
+                  <div className="p-3.5 bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl border border-amber-200 space-y-2.5">
+                    <div className="flex items-start gap-2">
+                      <Crown className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                      <div>
+                        <h4 className="text-xs font-bold text-amber-900">Register as Main Admin</h4>
+                        <p className="text-[11px] text-amber-700">Add this phone number as Main Admin with full control.</p>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-[10px] uppercase font-bold text-slate-600">Your Full Name</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Biswadeep (Owner)"
+                        value={newMainAdminName}
+                        onChange={e => setNewMainAdminName(e.target.value)}
+                        className="w-full border border-amber-200 bg-white rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-amber-400"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRegisterAsMainAdmin}
+                      className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm cursor-pointer transition-all"
+                    >
+                      <ShieldCheck className="w-4 h-4" /> Add & Login as Main Admin
+                    </button>
+                  </div>
+                )}
+
                 <button type="submit" className="w-full py-3 rounded-xl bg-slate-900 text-white text-sm font-bold flex items-center justify-center gap-2 hover:bg-slate-800 cursor-pointer shadow-md">
                   <KeyRound className="w-4 h-4" />Send OTP
                 </button>
                 <div className="p-3 bg-amber-50 rounded-xl border border-amber-100 text-[11px] text-amber-800 text-center">
-                  ðŸ”’ Only registered admin phones can access this panel. Contact your main admin to be added.
+                  🔒 Registered admin phones have instant access. If this is your agency, use "Add this phone as Main Admin" above.
                 </div>
               </form>
             ) : (
